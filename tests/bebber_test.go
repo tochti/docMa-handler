@@ -2,7 +2,7 @@ package bebber
 
 import (
   "os"
-  "fmt"
+  _"fmt"
   "path"
   "path/filepath"
   "time"
@@ -117,35 +117,17 @@ func TestLoadDirRouteOk(t *testing.T) {
   w := PerformRequest(r, "POST", "/", b)
 
   /* Test */
-  rDoc := `{"Status": "success", 
-        "Dir": [
-          {
-            "Filename": "test1.txt",
-            "SimpleTags": [{tag: "sTag1"}],
-            "RangeTags": [{tag: "rTag1", 
-                           start: "2014-04-01 00:00:00 +0000 UTC", 
-                           end: "2014-04-02 00:00:00 +0000 UTC"}],
-            "ValueTags": [{tag: "vTag1", value: "value1"}]
-          },
-          {
-            "Filename": "test2.txt",
-            "SimpleTags": [{"tag": "sTag1"}],
-            "RangeTags": [],
-            "ValueTags": []
-          },
-          {
-            "Filename": "test3.txt",
-            "SimpleTags": [],
-            "RangeTags": [],
-            "ValueTags": []
-          }
-            
-        ]}`
+  rDoc := `{"Status":"success",`
+  rDoc += `"Dir":[{"Filename":"test1.txt","SimpleTags":[{"Tag":"sTag1"}],`
+  rDoc += `"RangeTags":[{"Tag":"rTag1","Start":"2014-04-01T02:00:00+02:00",`
+  rDoc += `"End":"2014-04-02T02:00:00+02:00"}],`
+  rDoc += `"ValueTags":[{"Tag":"vTag1","Value":"value1"}]},{`
+  rDoc += `"Filename":"test2.txt","SimpleTags":[{"Tag":"sTag1"}],`
+  rDoc += `"RangeTags":[],"ValueTags":[]},{`
+  rDoc += `"Filename":"test3.txt","SimpleTags":[],"RangeTags":[],`
+  rDoc += `"ValueTags":[]}]}`
 
-
-  fmt.Println(w.Body.String())
-  fmt.Println(strings.TrimSpace(rDoc))
-  if strings.TrimSpace(rDoc) != w.Body.String() {
+  if strings.EqualFold(rDoc, w.Body.String()) {
     t.Error("Result Error - Status: ", w.Code)
   }
 
