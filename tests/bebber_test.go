@@ -21,13 +21,6 @@ import (
 
 var testDir, err = filepath.Abs(".")
 
-func createTestContext() (c *gin.Context, w *httptest.ResponseRecorder, r *gin.Engine) {
-	w = httptest.NewRecorder()
-	r = gin.New()
-  c = &gin.Context{Engine: r}
-	return
-}
-
 func PerformRequest(r http.Handler, method, path string, body *bytes.Buffer) *httptest.ResponseRecorder {
 	req, _ := http.NewRequest(method, path, body)
 	w := httptest.NewRecorder()
@@ -136,5 +129,159 @@ func TestLoadDirRouteOk(t *testing.T) {
   err = session.DB("bebber_test").DropDatabase()
   if err != nil {
     t.Error(err)
+  }
+}
+
+func TestSpotTagType(t *testing.T) {
+  ty, err := bebber.SpotTagType("test")
+  if ty != "SimpleTag" {
+    t.Error("Should be SimpleTag is ", ty)
+  }
+  if err != nil {
+    t.Error("Error should be empty is ", err.Error())
+  }
+
+  ty, err = bebber.SpotTagType("test:")
+  if ty != "" {
+    t.Error("Should be an wrong tag is ", ty)
+  }
+  if err == nil {
+    t.Error("Error should be (Missing value) but is nil")
+  }
+
+  ty, err = bebber.SpotTagType("test:1234")
+  if ty != "ValueTag" {
+    t.Error("Should be a ValueTag is ", ty)
+  }
+  if err != nil {
+    t.Error("Error should be empty is ", err.Error())
+  }
+
+  ty, err = bebber.SpotTagType("test:\"hallo hallo\"")
+  if ty != "ValueTag" {
+    t.Error("Should be a ValueTag is ", ty)
+  }
+  if err != nil {
+    t.Error("Error should be empty is ", err.Error())
+  }
+
+  ty, err = bebber.SpotTagType("test:er:li")
+  if ty != "ValueTag" {
+    t.Error("Should be a ValueTag is ", ty)
+  }
+  if err != nil {
+    t.Error("Error should be empty is ", err.Error())
+  }
+
+  ty, err = bebber.SpotTagType("test:01012014..02022014")
+  if ty != "RangeTag" {
+    t.Error("Should be a RangeTag is ", ty)
+  }
+  if err != nil {
+    t.Error("Error should be empty is ", err.Error())
+  }
+
+  ty, err = bebber.SpotTagType("test:1102014..02022104")
+  if ty != "RangeTag" {
+    t.Error("Should be RangeTag is ", ty)
+  }
+  if err.Error() != "Error in range" {
+    t.Error("Error msg should be (Error in range) is ", err.Error())
+  }
+
+  ty, err = bebber.SpotTagType("test:1102014..02022104")
+  if ty != "RangeTag" {
+    t.Error("Should be RangeTag is ", ty)
+  }
+  if err.Error() != "Error in range" {
+    t.Error("Error msg should be (Error in range) is ", err.Error())
+  }
+
+  ty, err = bebber.SpotTagType("test:1102014..2022104")
+  if ty != "RangeTag" {
+    t.Error("Should be RangeTag is ", ty)
+  }
+  if err.Error() != "Error in range" {
+    t.Error("Error msg should be (Error in range) is ", err.Error())
+  }
+
+  ty, err = bebber.SpotTagType("test:..02022015")
+  if ty != "RangeTag" {
+    t.Error("Should be RangeTag is ", ty)
+  }
+  if err != nil {
+    t.Error("No error should occur ", err.Error())
+  }
+
+  ty, err = bebber.SpotTagType("test:02022015..")
+  if ty != "RangeTag" {
+    t.Error("Should be RangeTag is ", ty)
+  }
+  if err != nil {
+    t.Error("No error should occur ", err.Error())
+  }
+
+}
+
+func TestCreateUpdateDocSimpleTag(t *testing.T) {
+  doc, err := bebber.CreateUpdateDoc("test.txt", []string{})
+  if err != nil {
+    t.Error(err.Error())
+  }
+  if doc.Filename != "test.txt" {
+    t.Error("#1 wrong filename (", doc.Filename, ")")
+  }
+  if len(doc.SimpleTags) != 0 {
+    t.Error("expect [] is ", doc.SimpleTags)
+  }
+
+  doc, err = bebber.CreateUpdateDoc("test.txt", []string{"sTag1", "sTag2"})
+  if err != nil {
+    t.Error(err.Error())
+  }
+  if doc.Filename != "test.txt" {
+    t.Error("#2 wrong filename (", doc.Filename, ")")
+  }
+  if doc.SimpleTags[0].Tag != "sTag1" || doc.SimpleTags[1].Tag != "sTag2" {
+    t.Error("wrong tags ", doc.SimpleTags)
+  }
+}
+
+func TestCreateUpdateValueTag(t *testing.T) {
+  tags := []string{"vTag1:1234", "vTag2:\"foo bar\"", "vTag3:va:lue"}
+  doc, err := bebber.CreateUpdateDoc("test.txt", tags)
+  if err != nil {
+    t.Error(err.Error())
+  }
+  if doc.Filename != "test.txt" {
+    t.Error("wrong filename (", doc.Filename, ")")
+  }
+
+  if doc.ValueTags[0].Tag != "vTag1" || doc.ValueTags[0].Value != "1234" {
+    t.Error("wrong value tag #1 ", doc.ValueTags[0])
+  }
+  if doc.ValueTags[1].Tag != "vTag2" || doc.ValueTags[1].Value != "foo bar" {
+    t.Error("wrong value tag #2 ", doc.ValueTags[1])
+  }
+  if doc.ValueTags[2].Tag != "vTag3" || doc.ValueTags[2].Value != "va:lue" {
+    t.Error("wrong value tag #3 ", doc.ValueTags[2])
+  }
+}
+
+func TestCreateUpdateRangeTag(t *testing.T) {
+  tags := []string{"rT1:01042014..02042014", "rt2:..02042014", "rt3:01042014.."}
+  doc, err := bebber.CreateUpdateDoc("test.txt", tags)
+  if err != nil {
+    t.Log(err.Error())
+    t.FailNow()
+  }
+  if doc.Filename != "test.txt" {
+    t.Error("wrong filename (", doc.Filename, ")")
+  }
+
+  sD := time.Date(2014, time.April, 1, 0, 0, 0, 0, time.UTC)
+  eD := time.Date(2014, time.April, 2, 0, 0, 0, 0, time.UTC)
+  if doc.RangeTags[0].Tag != "rT1" || doc.RangeTags[0].Start != sD || doc.RangeTags[0].End != eD {
+    t.Error("wrong range tag ", doc.RangeTags[0])
   }
 }

@@ -1,8 +1,10 @@
 package bebber
 
 import (
-  "time"
+  _"time"
   "bytes"
+  "errors"
+  _"strings"
   "net/http"
   "io/ioutil"
   "encoding/json"
@@ -27,28 +29,6 @@ type LoadDirRequest struct {
 type LoadDirResponse struct {
   Status string
   Dir []FileDoc
-}
-
-type SimpleTag struct {
-  Tag string
-}
-
-type RangeTag struct {
-  Tag string
-  Start time.Time
-  End time.Time
-}
-
-type ValueTag struct {
-  Tag string
-  Value string
-}
-
-type FileDoc struct {
-  Filename string
-  SimpleTags []SimpleTag
-  RangeTags []RangeTag
-  ValueTags []ValueTag
 }
 
 func LoadDir(c *gin.Context) {
@@ -113,3 +93,35 @@ func LoadDir(c *gin.Context) {
 
 }
 
+func CreateUpdateDoc(file string, tags []string) (*FileDoc, error) {
+  if len(tags) == 0 {
+    return &FileDoc{Filename: file}, nil
+  }
+
+  var sTags []SimpleTag
+  var vTags []ValueTag
+  var rTags []RangeTag
+  for _, tag := range tags {
+    typ, err := SpotTagType(tag)
+    if err != nil {
+      return nil, errors.New(err.Error())
+    }
+    switch typ {
+    case "SimpleTag":
+      sTags = append(sTags, SimpleTag{tag})
+    case "ValueTag":
+      vTags = append(vTags, ParseValueTag(tag))
+    case "RangeTag":
+      rTags = append(rTags, ParseRangeTag(tag))
+    }
+  }
+
+  doc := FileDoc{
+    Filename: file,
+    SimpleTags: sTags,
+    ValueTags: vTags,
+    RangeTags: rTags,
+  }
+
+  return &doc, nil
+}
