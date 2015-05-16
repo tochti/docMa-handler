@@ -45,7 +45,7 @@ type FileDoc struct {
 func GetSettings(k string) string {
   v := os.Getenv(k)
   if v == "" {
-    fmt.Sprintf("%v env is missing", k)
+    fmt.Println(k + " env is missing")
     os.Exit(2)
   }
 
@@ -167,5 +167,9 @@ func ParseJsonRequest(c *gin.Context, s interface{}) error {
   buf := new(bytes.Buffer)
   buf.ReadFrom(c.Request.Body)
 
-  return json.Unmarshal(buf.Bytes(), &s)
+  err := json.Unmarshal(buf.Bytes(), s)
+  return err
 }
+
+
+
