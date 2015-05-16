@@ -31,6 +31,11 @@ type LoadDirResponse struct {
   Dir []FileDoc
 }
 
+type AddTagsRequest struct {
+  Filename string
+  Tags []string
+}
+
 func LoadDir(c *gin.Context) {
   session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
   if err != nil {
@@ -91,6 +96,31 @@ func LoadDir(c *gin.Context) {
 
   c.JSON(http.StatusOK, res)
 
+}
+
+func AddTags(c *gin.Context) {
+  var jsonReq AddTagsRequest
+  err := ParseJsonRequest(c, jsonReq)
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{
+                          "fail",
+                          "Couldn't parse request - "+ err.Error(),
+                        })
+  }
+
+  session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
+  collection := session.DB(GetSettings("BEBBER_DB_NAME")).C(DbFileCollection)
+
+  doc := FileDoc{}
+  err = collection.Find(bson.M{"filename": jsonReq.Filename}).One(&doc)
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{
+                              "fail",
+                              "Db error - "+ err.Error(),
+                          })
+  }
+
+  _, err = CreateUpdateDoc(jsonReq.Filename, jsonReq.Tags)
 }
 
 func CreateUpdateDoc(file string, tags []string) (*FileDoc, error) {

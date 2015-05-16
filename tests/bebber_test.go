@@ -15,6 +15,7 @@ import (
   _"encoding/json"
 
   "gopkg.in/mgo.v2"
+  "gopkg.in/mgo.v2/bson"
   "github.com/rrawrriw/bebber"
   "github.com/gin-gonic/gin"
 )
@@ -130,6 +131,75 @@ func TestLoadDirRouteOk(t *testing.T) {
   if err != nil {
     t.Error(err)
   }
+}
+
+func TestAddTagsOk(t *testing.T) {
+  /* setup */
+  os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
+  os.Setenv("BEBBER_DB_NAME", "bebber_test")
+  session, err := mgo.Dial("127.0.0.1")
+  if err != nil {
+    t.Log(err.Error())
+    t.FailNow()
+  }
+  defer session.DB("bebber_test").DropDatabase()
+  collection := session.DB("bebber_test").C("files")
+  tmp := bebber.RangeTag{
+            "rT1",
+            time.Date(2014, time.April, 6, 0, 0, 0, 0, time.UTC),
+            time.Date(2014, time.April, 7, 0, 0, 0, 0, time.UTC),
+          }
+  doc := bebber.FileDoc{Filename: "test.txt",
+                 SimpleTags: []bebber.SimpleTag{bebber.SimpleTag{"sT1"}},
+                 ValueTags: []bebber.ValueTag{bebber.ValueTag{"vT1", "v1"}},
+                 RangeTags: []bebber.RangeTag{tmp},
+                }
+
+  collection.Insert(doc)
+
+  /* perfom request */
+  s := gin.New()
+  s.POST("/", bebber.AddTags)
+  body := bytes.NewBufferString(`{
+          "Filename": "test.txt"
+          "Tags": ["sT2", "vT2:v2", "rT2:01042014..02042014"]
+          }`)
+  res := PerformRequest(s, "POST", "/", body)
+
+  /* test */
+  if res.Code != 200 {
+    t.Error("Http Code should be 200 but is ", res.Code)
+  }
+
+  if res.Body.String() != `{"status":"success",msg:""}` {
+    t.Error("Wrong response msg")
+  }
+  rD := bebber.FileDoc{}
+  err = collection.Find(bson.M{"filename": "test.txt"}).One(&rD)
+  if err != nil {
+    t.Log(err.Error())
+    t.FailNow()
+  }
+
+  if len(rD.SimpleTags) != 2 {
+    t.Error("SimpleTags len should be 2 but is ", len(rD.SimpleTags))
+  }
+  if len(rD.ValueTags) != 2 {
+    t.Error("ValueTags len should be 2 but is ", len(rD.ValueTags))
+  }
+  if len(rD.RangeTags) != 2 {
+    t.Error("RangeTags len should be 2 but is ", len(rD.RangeTags))
+  }
+  if rD.SimpleTags[2].Tag != "sT2" {
+    t.Error("Expect sT2 is ", rD.SimpleTags[2])
+  }
+  if rD.ValueTags[2].Tag != "vT2" {
+    t.Error("Expect vT2 is ", rD.ValueTags[2])
+  }
+  if rD.RangeTags[2].Tag != "rT2" {
+    t.Error("Expect rT2 is ", rD.RangeTags[2])
+  }
+
 }
 
 func TestSpotTagType(t *testing.T) {

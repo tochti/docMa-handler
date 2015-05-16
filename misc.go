@@ -4,10 +4,14 @@ import (
   "os"
   "fmt"
   "time"
+  "bytes"
   "errors"
   "strconv"
   "strings"
   _"regexp"
+  "encoding/json"
+
+  "github.com/gin-gonic/gin"
 )
 
 const (
@@ -157,4 +161,11 @@ func ParseDate(d string) time.Time {
     day, _ := strconv.ParseInt(d[0:2], 10, 0)
     return time.Date(int(year), months[int(month)-1], int(day), 0, 0, 0, 0, time.UTC)
 
+}
+
+func ParseJsonRequest(c *gin.Context, s interface{}) error {
+  buf := new(bytes.Buffer)
+  buf.ReadFrom(c.Request.Body)
+
+  return json.Unmarshal(buf.Bytes(), &s)
 }
