@@ -7,7 +7,7 @@ import (
   "path/filepath"
   "time"
   "bytes"
-  "strings"
+  _"strings"
   "io/ioutil"
   "testing"
   "net/http"
@@ -42,8 +42,7 @@ func TestSubListOK(t *testing.T) {
 
   diff := bebber.SubList(a, b)
   if len(diff) != 1 {
-    t.Log("Diff should be [1] but is ", diff)
-    t.FailNow()
+    t.Fatal("Diff should be [1] but is ", diff)
   }
   if diff[0] != "1" {
     t.Error("Diff should be [1] but is ", diff)
@@ -57,8 +56,7 @@ func TestSubListEmpty(t *testing.T) {
 
   diff := bebber.SubList(a, b)
   if len(diff) != 0 {
-    t.Log("Diff should be [] but is ", diff)
-    t.FailNow()
+    t.Fatal("Diff should be [] but is ", diff)
   }
 }
 
@@ -119,9 +117,9 @@ func TestLoadDirRouteOk(t *testing.T) {
   rDoc += `"Filename":"test2.txt","SimpleTags":[{"Tag":"sTag1"}],`
   rDoc += `"RangeTags":[],"ValueTags":[]},{`
   rDoc += `"Filename":"test3.txt","SimpleTags":[],"RangeTags":[],`
-  rDoc += `"ValueTags":[]}]}`
+  rDoc += `"ValueTags":[]}]}` + "\n"
 
-  if strings.EqualFold(rDoc, w.Body.String()) {
+  if rDoc != w.Body.String() {
     t.Error("Result Error - Status: ", w.Code)
   }
 
@@ -139,8 +137,7 @@ func TestAddTagsOk(t *testing.T) {
   os.Setenv("BEBBER_DB_NAME", "bebber_test")
   session, err := mgo.Dial("127.0.0.1")
   if err != nil {
-    t.Log(err.Error())
-    t.FailNow()
+    t.Fatal(err.Error())
   }
   defer session.DB("bebber_test").DropDatabase()
   collection := session.DB("bebber_test").C("files")
@@ -161,7 +158,7 @@ func TestAddTagsOk(t *testing.T) {
   s := gin.New()
   s.POST("/", bebber.AddTags)
   body := bytes.NewBufferString(`{
-          "Filename": "test.txt"
+          "Filename": "test.txt",
           "Tags": ["sT2", "vT2:v2", "rT2:01042014..02042014"]
           }`)
   res := PerformRequest(s, "POST", "/", body)
@@ -170,33 +167,31 @@ func TestAddTagsOk(t *testing.T) {
   if res.Code != 200 {
     t.Error("Http Code should be 200 but is ", res.Code)
   }
-
-  if res.Body.String() != `{"status":"success",msg:""}` {
-    t.Error("Wrong response msg")
+  if res.Body.String() != `{"Status":"success","Msg":""}`+"\n" {
+    t.Error("Wrong response msg got ", res.Body.String())
   }
   rD := bebber.FileDoc{}
   err = collection.Find(bson.M{"filename": "test.txt"}).One(&rD)
   if err != nil {
-    t.Log(err.Error())
-    t.FailNow()
+    t.Fatal(err.Error())
   }
 
   if len(rD.SimpleTags) != 2 {
-    t.Error("SimpleTags len should be 2 but is ", len(rD.SimpleTags))
+    t.Fatal("SimpleTags len should be 2 but is ", rD.SimpleTags)
   }
   if len(rD.ValueTags) != 2 {
-    t.Error("ValueTags len should be 2 but is ", len(rD.ValueTags))
+    t.Fatal("ValueTags len should be 2 but is ", rD.ValueTags)
   }
   if len(rD.RangeTags) != 2 {
-    t.Error("RangeTags len should be 2 but is ", len(rD.RangeTags))
+    t.Fatal("RangeTags len should be 2 but is ", rD.RangeTags)
   }
-  if rD.SimpleTags[2].Tag != "sT2" {
+  if rD.SimpleTags[1].Tag != "sT2" {
     t.Error("Expect sT2 is ", rD.SimpleTags[2])
   }
-  if rD.ValueTags[2].Tag != "vT2" {
+  if rD.ValueTags[1].Tag != "vT2" {
     t.Error("Expect vT2 is ", rD.ValueTags[2])
   }
-  if rD.RangeTags[2].Tag != "rT2" {
+  if rD.RangeTags[1].Tag != "rT2" {
     t.Error("Expect rT2 is ", rD.RangeTags[2])
   }
 
@@ -294,7 +289,8 @@ func TestSpotTagType(t *testing.T) {
 }
 
 func TestCreateUpdateDocSimpleTag(t *testing.T) {
-  doc, err := bebber.CreateUpdateDoc("test.txt", []string{})
+  doc := bebber.FileDoc{Filename: "test.txt"}
+  err := bebber.CreateUpdateDoc([]string{}, &doc)
   if err != nil {
     t.Error(err.Error())
   }
@@ -305,21 +301,29 @@ func TestCreateUpdateDocSimpleTag(t *testing.T) {
     t.Error("expect [] is ", doc.SimpleTags)
   }
 
-  doc, err = bebber.CreateUpdateDoc("test.txt", []string{"sTag1", "sTag2"})
+  doc = bebber.FileDoc{
+          Filename: "test.txt",
+          SimpleTags: []bebber.SimpleTag{bebber.SimpleTag{"sTag"}},
+        }
+  err = bebber.CreateUpdateDoc([]string{"sTag1", "sTag2"}, &doc)
   if err != nil {
     t.Error(err.Error())
   }
   if doc.Filename != "test.txt" {
     t.Error("#2 wrong filename (", doc.Filename, ")")
   }
-  if doc.SimpleTags[0].Tag != "sTag1" || doc.SimpleTags[1].Tag != "sTag2" {
+  if len(doc.SimpleTags) != 3 {
+    t.Fatal("Expect 3 SimpleTags got ", len(doc.SimpleTags))
+  }
+  if doc.SimpleTags[0].Tag != "sTag" || doc.SimpleTags[1].Tag != "sTag1" || doc.SimpleTags[2].Tag != "sTag2" {
     t.Error("wrong tags ", doc.SimpleTags)
   }
 }
 
 func TestCreateUpdateValueTag(t *testing.T) {
   tags := []string{"vTag1:1234", "vTag2:\"foo bar\"", "vTag3:va:lue"}
-  doc, err := bebber.CreateUpdateDoc("test.txt", tags)
+  doc := bebber.FileDoc{Filename: "test.txt"}
+  err := bebber.CreateUpdateDoc(tags, &doc)
   if err != nil {
     t.Error(err.Error())
   }
@@ -340,10 +344,10 @@ func TestCreateUpdateValueTag(t *testing.T) {
 
 func TestCreateUpdateRangeTag(t *testing.T) {
   tags := []string{"rT1:01042014..02042014", "rt2:..02042014", "rt3:01042014.."}
-  doc, err := bebber.CreateUpdateDoc("test.txt", tags)
+  doc := bebber.FileDoc{Filename: "test.txt"}
+  err := bebber.CreateUpdateDoc(tags, &doc)
   if err != nil {
-    t.Log(err.Error())
-    t.FailNow()
+    t.Fatal(err.Error())
   }
   if doc.Filename != "test.txt" {
     t.Error("wrong filename (", doc.Filename, ")")

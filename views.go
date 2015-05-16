@@ -1,10 +1,8 @@
 package bebber
 
 import (
-  _"time"
   "bytes"
   "errors"
-  _"strings"
   "net/http"
   "io/ioutil"
   "encoding/json"
@@ -18,8 +16,13 @@ const (
 )
 
 type ErrorResponse struct {
-  status string
-  msg string
+  Status string
+  Msg string
+}
+
+type SuccessResponse struct {
+  Status string
+  Msg string
 }
 
 type LoadDirRequest struct {
@@ -39,7 +42,9 @@ type AddTagsRequest struct {
 func LoadDir(c *gin.Context) {
   session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
   if err != nil {
-    panic(err)
+    errMsg := "Db error - "+ err.Error()
+    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
+    return
   }
   defer session.Close()
 
@@ -53,7 +58,9 @@ func LoadDir(c *gin.Context) {
   var dir LoadDirRequest
   err = json.Unmarshal(buf.Bytes(), &dir)
   if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", "dir param is missing"})
+    errMsg := "Parsing error - "+ err.Error()
+    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
+    return
   }
 
   files, err := ioutil.ReadDir(dir.Dir)
@@ -72,7 +79,9 @@ func LoadDir(c *gin.Context) {
   iter := collection.Find(filter).Iter()
   err = iter.All(&result)
   if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", "DB Problems"})
+    errMsg := "Db Error - "+ err.Error()
+    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
+    return
   }
 
   tmp := make([]string, len(result))
@@ -99,59 +108,69 @@ func LoadDir(c *gin.Context) {
 }
 
 func AddTags(c *gin.Context) {
-  var jsonReq AddTagsRequest
-  err := ParseJsonRequest(c, jsonReq)
+  jsonReq := AddTagsRequest{}
+  err := ParseJsonRequest(c, &jsonReq)
   if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{
-                          "fail",
-                          "Couldn't parse request - "+ err.Error(),
-                        })
+    errMsg := "Couldn't parse request - "+ err.Error()
+    res := ErrorResponse{"fail", errMsg}
+    c.JSON(http.StatusOK, res)
+    return
   }
 
   session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
   collection := session.DB(GetSettings("BEBBER_DB_NAME")).C(DbFileCollection)
 
-  doc := FileDoc{}
-  err = collection.Find(bson.M{"filename": jsonReq.Filename}).One(&doc)
+  updateDoc := FileDoc{}
+  err = collection.Find(bson.M{"filename": jsonReq.Filename}).One(&updateDoc)
   if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{
-                              "fail",
-                              "Db error - "+ err.Error(),
-                          })
+    errMsg := "Db error -"+ err.Error()
+    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
+    return
   }
 
-  _, err = CreateUpdateDoc(jsonReq.Filename, jsonReq.Tags)
+  err = CreateUpdateDoc(jsonReq.Tags, &updateDoc)
+  if err != nil {
+    errMsg := "Cannot update file "+ jsonReq.Filename +" - "+ err.Error()
+    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
+    return
+  }
+  newDoc := FileDoc{}
+  change := mgo.Change{
+              Update: updateDoc,
+              Upsert: true,
+              ReturnNew: true,
+            }
+  info, err := collection.Find(bson.M{"filename": jsonReq.Filename}).
+                          Apply(change, &newDoc)
+  if err != nil {
+    errMsg := "Cannot update file "+ jsonReq.Filename +" - "+ err.Error()
+    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
+    return
+  }
+  if info.Updated != 1 {
+    errMsg := "Expected to update 1 document, was "+ string(info.Updated)
+    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
+    return
+  }
+
+  c.JSON(http.StatusOK, SuccessResponse{"success", ""})
 }
 
-func CreateUpdateDoc(file string, tags []string) (*FileDoc, error) {
-  if len(tags) == 0 {
-    return &FileDoc{Filename: file}, nil
-  }
-
-  var sTags []SimpleTag
-  var vTags []ValueTag
-  var rTags []RangeTag
+func CreateUpdateDoc(tags []string, doc *FileDoc) error {
   for _, tag := range tags {
     typ, err := SpotTagType(tag)
     if err != nil {
-      return nil, errors.New(err.Error())
+      return errors.New(err.Error())
     }
     switch typ {
     case "SimpleTag":
-      sTags = append(sTags, SimpleTag{tag})
+      doc.SimpleTags = append(doc.SimpleTags, SimpleTag{tag})
     case "ValueTag":
-      vTags = append(vTags, ParseValueTag(tag))
+      doc.ValueTags = append(doc.ValueTags, ParseValueTag(tag))
     case "RangeTag":
-      rTags = append(rTags, ParseRangeTag(tag))
+      doc.RangeTags = append(doc.RangeTags, ParseRangeTag(tag))
     }
   }
 
-  doc := FileDoc{
-    Filename: file,
-    SimpleTags: sTags,
-    ValueTags: vTags,
-    RangeTags: rTags,
-  }
-
-  return &doc, nil
+  return nil
 }
