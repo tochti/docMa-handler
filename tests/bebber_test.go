@@ -74,6 +74,7 @@ func TestLoadDirRouteOk(t *testing.T) {
   ioutil.WriteFile(path.Join(tmpDir, "test1.txt"), []byte{}, mode)
   ioutil.WriteFile(path.Join(tmpDir, "test2.txt"), []byte{}, mode)
   ioutil.WriteFile(path.Join(tmpDir, "test3.txt"), []byte{}, mode)
+  _,_ = ioutil.TempDir(tmpDir, "xxx")
 
   session, err := mgo.Dial("127.0.0.1")
   if err != nil {
@@ -88,16 +89,21 @@ func TestLoadDirRouteOk(t *testing.T) {
     []bebber.RangeTag{bebber.RangeTag{"rTag1", sT, eT}},
     []bebber.ValueTag{bebber.ValueTag{"vTag1", "value1"}},
   }
-
   doc2 := bebber.FileDoc{
     "test2.txt",
     []bebber.SimpleTag{bebber.SimpleTag{"sTag1"}},
     []bebber.RangeTag{},
     []bebber.ValueTag{},
   }
+  doc3 := bebber.FileDoc{
+    "notinlist.txt",
+    []bebber.SimpleTag{},
+    []bebber.RangeTag{},
+    []bebber.ValueTag{},
+  }
 
   c := session.DB("bebber_test").C("files")
-  err = c.Insert(doc1, doc2)
+  err = c.Insert(doc1, doc2, doc3)
   if err != nil {
     t.Error(err)
   }
@@ -120,7 +126,7 @@ func TestLoadDirRouteOk(t *testing.T) {
   rDoc += `"ValueTags":[]}]}` + "\n"
 
   if rDoc != w.Body.String() {
-    t.Error("Result Error - Status: ", w.Code)
+    t.Error("Error in response json, response is ", w.Body.String())
   }
 
   /* cleanup */

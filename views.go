@@ -64,10 +64,15 @@ func LoadDir(c *gin.Context) {
   }
 
   files, err := ioutil.ReadDir(dir.Dir)
-  incFiles := make([]string, len(files))
+  if err != nil {
+    errMsg := "Dir error - "+ err.Error()
+    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
+    return
+  }
+  incFiles := []string{}
   for i := range files {
     if files[i].IsDir() == false {
-      incFiles[i] = files[i].Name()
+      incFiles = append(incFiles, files[i].Name())
     }
   }
 
@@ -117,13 +122,19 @@ func AddTags(c *gin.Context) {
     return
   }
 
+  if jsonReq.Filename == "" {
+    res := ErrorResponse{"fail", "No Filename"}
+    c.JSON(http.StatusOK, res)
+    return
+  }
+
   session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
   collection := session.DB(GetSettings("BEBBER_DB_NAME")).C(DbFileCollection)
 
-  updateDoc := FileDoc{}
+  updateDoc := FileDoc{Filename: jsonReq.Filename}
   err = collection.Find(bson.M{"filename": jsonReq.Filename}).One(&updateDoc)
-  if err != nil {
-    errMsg := "Db error -"+ err.Error()
+  if err != nil  && err.Error() != "not found" {
+    errMsg := "Db error - "+ err.Error()
     c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
     return
   }
@@ -147,7 +158,8 @@ func AddTags(c *gin.Context) {
     c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
     return
   }
-  if info.Updated != 1 {
+
+  if info.Updated != 1 && info.UpsertedId == nil {
     errMsg := "Expected to update 1 document, was "+ string(info.Updated)
     c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
     return
