@@ -441,3 +441,110 @@ func TestCreateUpdateRangeTag(t *testing.T) {
     t.Error("wrong range tag ", doc.RangeTags[0])
   }
 }
+
+func TestJoinAccFile(t *testing.T) {
+  /* setup */
+  // Invoices
+  invo1 := bebber.AccData{
+    Belegdatum: time.Date(2014,time.March,1, 0,0,0,0,time.UTC),
+    Buchungsdatum: time.Date(2014, time.March,2, 0,0,0,0,time.UTC),
+    Belegnummernkreis: "1",
+    Belegnummer: "1",
+    Sollkonto: 10001,
+    Habenkonto: 20001,
+  }
+  invo2 := bebber.AccData{
+    Belegdatum: time.Date(2014,time.March,1, 0,0,0,0,time.UTC),
+    Buchungsdatum: time.Date(2014, time.March,2, 0,0,0,0,time.UTC),
+    Belegnummernkreis: "1",
+    Belegnummer: "2",
+    Sollkonto: 10001,
+    Habenkonto: 20001,
+  }
+  stat1 := bebber.AccData{
+    Belegdatum: time.Date(2014,time.March,1, 0,0,0,0,time.UTC),
+    Buchungsdatum: time.Date(2014, time.March,2, 0,0,0,0,time.UTC),
+    Belegnummernkreis: "",
+    Belegnummer: "",
+    Sollkonto: 10001,
+    Habenkonto: 20001,
+  }
+  stat2 := bebber.AccData{
+    Belegdatum: time.Date(2014,time.April,1, 0,0,0,0,time.UTC),
+    Buchungsdatum: time.Date(2014, time.April,6, 0,0,0,0,time.UTC),
+    Belegnummernkreis: "",
+    Belegnummer: "",
+    Sollkonto: 10001,
+    Habenkonto: 20001,
+  }
+
+  acd := []bebber.AccData{invo1, invo2, stat1, stat2}
+  // Fill database 
+  session, err := mgo.Dial("127.0.0.1")
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  c := session.DB("bebber_test").C("files")
+
+  f1 := bebber.FileDoc{
+    Filename: "i1.pdf",
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Belegnummer", "11"}},
+  }
+  f2 := bebber.FileDoc{
+    Filename: "i2.pdf",
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Belegnummer", "12"}},
+  }
+  f3 := bebber.FileDoc{
+    Filename: "inone.pdf",
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Belegnummer", "13"}},
+  }
+  sD := time.Date(2014,time.February,14, 0,0,0,0,time.UTC)
+  eD := time.Date(2014,time.March,1, 0,0,0,0,time.UTC)
+  rT1 := bebber.RangeTag{"Belegzeitraum", sD, eD}
+  f4 := bebber.FileDoc{
+    Filename: "s1.pdf",
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Kontonummer", "10001"}},
+    RangeTags: []bebber.RangeTag{rT1},
+  }
+  sD = time.Date(2014,time.April,1, 0,0,0,0,time.UTC)
+  eD = time.Date(2014,time.April,18, 0,0,0,0,time.UTC)
+  rT2 := bebber.RangeTag{"Belegzeitraum", sD, eD}
+  f5 := bebber.FileDoc{
+    Filename: "s2.pdf",
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Kontonummer", "20001"}},
+    RangeTags: []bebber.RangeTag{rT2},
+  }
+  sD = time.Date(2014,time.April,20, 0,0,0,0,time.UTC)
+  eD = time.Date(2014,time.April,24, 0,0,0,0,time.UTC)
+  rT3 := bebber.RangeTag{"Belegzeitraum", sD, eD}
+  f6 := bebber.FileDoc{
+    Filename: "snone.pdf",
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Kontonummer", "10001"}},
+    RangeTags: []bebber.RangeTag{rT3},
+  }
+
+  c.Insert(f1, f2, f3, f4, f5, f6)
+
+  eresult := []bebber.AccFile{
+    bebber.AccFile{&invo1, &f1},
+    bebber.AccFile{&invo2, &f2},
+    bebber.AccFile{&stat1, &f4},
+    bebber.AccFile{&stat2, &f5},
+  }
+
+  result := []bebber.AccFile{}
+  err = bebber.JoinAccFile(acd, c, &result)
+
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  for i := range eresult {
+    if eresult[i].FileDoc.Filename == result[i].FileDoc.Filename {
+      t.Error("Expect ", eresult[i].FileDoc.Filename, "was",
+              result[i].FileDoc.Filename)
+    }
+  }
+
+}

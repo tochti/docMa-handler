@@ -13,6 +13,7 @@ import (
   "encoding/csv"
   "encoding/json"
 
+  "gopkg.in/mgo.v2"
   "github.com/gin-gonic/gin"
 )
 
@@ -59,6 +60,11 @@ type AccData struct {
   Kostenstelle2 string
   BuchungsbetragEuro float64
   Waehrung string
+}
+
+type AccFile struct {
+  *AccData
+  *FileDoc
 }
 
 func Month(m int64) time.Month {
@@ -225,21 +231,21 @@ func ReadAccFile(fName string, ad *[]AccData) (error) {
   return nil
 }
 
-func UnmarshalAccData(r *csv.Reader, d *AccData) error {
-  s, err := r.Read()
+func UnmarshalAccData(reader *csv.Reader, data *AccData) error {
+  s, err := reader.Read()
   if err != nil {
     return err
   }
 
   if (s[0] == "") && (s[1] == "") && (s[2] == "") && (s[3] == "") {
-    d.Belegdatum = GetZeroDate()
-    d.Buchungsdatum = GetZeroDate()
-    d.Belegnummernkreis = ""
-    d.Belegnummer = ""
+    data.Belegdatum = GetZeroDate()
+    data.Buchungsdatum = GetZeroDate()
+    data.Belegnummernkreis = ""
+    data.Belegnummer = ""
   } else {
     /* 
     Sind die ersten vier Felder leer ist der Eintrag ein Teil einer
-    Rechnung d.h die in diesem if-Block zugewiesenen Felder können nicht 
+    Rechnung data.h die in diesem if-Block zugewiesenen Felder können nicht 
     zugewiesen werden, dies ist jedoch kein Fehler alle 
     restliche vorhanden Daten werden zugewisen was damit passiert 
     muss die aufrufende Funktion bestimmen. 
@@ -248,52 +254,56 @@ func UnmarshalAccData(r *csv.Reader, d *AccData) error {
     if err != nil {
       return errors.New("Cannot create Belegdatum")
     }
-    d.Belegdatum = date
+    data.Belegdatum = date
 
     date, err = ParseGermanDate(s[1], ".")
     if err != nil {
       return errors.New("Cannot create Buchungsdatum")
     }
-    d.Buchungsdatum = date
+    data.Buchungsdatum = date
 
-    d.Belegnummernkreis = s[2]
-    d.Belegnummer = s[3]
+    data.Belegnummernkreis = s[2]
+    data.Belegnummer = s[3]
   }
 
-  d.Buchungstext = s[4]
+  data.Buchungstext = s[4]
   fl, err := ParseFloatComma(s[5])
   if err != nil {
     return errors.New("Buchungstext have to be a float - "+ err.Error())
   }
-  d.Buchungsbetrag = fl
+  data.Buchungsbetrag = fl
 
   in, err := ParseAccInt(s[6])
   if err != nil {
     return errors.New("Sollkonto have to be a integer - "+ err.Error())
   }
-  d.Sollkonto = in
+  data.Sollkonto = in
 
   in, err = ParseAccInt(s[7])
   if err != nil {
     return errors.New("Habenkonto have to be a integer - "+ err.Error())
   }
-  d.Habenkonto = in
+  data.Habenkonto = in
 
   in, err = strconv.ParseInt(s[8], 10, 32)
   if err != nil {
     return errors.New("Steuerschlüssel have to be a integer - "+ err.Error())
   }
-  d.Steuerschlüssel = in
-  d.Kostenstelle1 = s[9]
-  d.Kostenstelle2 = s[10]
+  data.Steuerschlüssel = in
+  data.Kostenstelle1 = s[9]
+  data.Kostenstelle2 = s[10]
 
   fl, err = ParseFloatComma(s[11])
   if err != nil {
     return errors.New("Buchungstext have to be a float - "+ err.Error())
   }
-  d.BuchungsbetragEuro = fl
-  d.Waehrung = s[12]
+  data.BuchungsbetragEuro = fl
+  data.Waehrung = s[12]
 
+  return nil
+}
+
+func JoinAccFile(data []AccData, collection *mgo.Collection, result *[]AccFile) error {
   return nil
 }
 
