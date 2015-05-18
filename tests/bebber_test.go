@@ -203,6 +203,82 @@ func TestAddTagsOk(t *testing.T) {
 
 }
 
+func TestReadAccData(t *testing.T) {
+  csvFile := path.Join(testDir, "export.csv")
+  result := []bebber.AccData{}
+  err := bebber.ReadAccFile(csvFile, &result)
+
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  d1 := time.Date(2013, time.August, 29, 0, 0, 0, 0, time.UTC)
+  d2 := time.Date(2013, time.September, 01, 0, 0, 0, 0, time.UTC)
+  if (result[0].Belegdatum != d1) ||
+     (result[0].Buchungsdatum != d2) ||
+     (result[0].Belegnummernkreis != "B") ||
+     (result[0].Belegnummer != "6") ||
+     (result[0].Buchungstext != "Lastschrift Strato") ||
+     (result[0].Buchungsbetrag != 7.99) ||
+     (result[0].Sollkonto != 71003) ||
+     (result[0].Habenkonto != 1210) ||
+     (result[0].Steuerschlüssel != 0) ||
+     (result[0].Kostenstelle1 != "") ||
+     (result[0].Kostenstelle2 != "") ||
+     (result[0].BuchungsbetragEuro != 7.99) ||
+     (result[0].Waehrung != "EUR") {
+    t.Error("Error in CSV result ", result[0])
+  }
+
+  if len(result) != 7 {
+    t.Error("Len of result should be 7, was ", len(result))
+  }
+
+}
+
+func TestParseAccInt(t *testing.T) {
+  r, err := bebber.ParseAccInt("")
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  if r != -1 {
+    t.Error("Expect -1 was ", r)
+  }
+
+  r, err = bebber.ParseAccInt("1")
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  if r != 1 {
+    t.Fatal("Expect 1 was ", r)
+  }
+}
+
+func TestParseGermanDate(t *testing.T) {
+  d := time.Date(1999, time.January, 1, 0, 0, 0, 0, time.UTC)
+  result, err := bebber.ParseGermanDate("01.01.1999", ".")
+  if err != nil {
+    t.Fatal(err)
+  }
+  if d != result {
+    t.Error("Expect ", d ," was ", result)
+  }
+}
+
+func TestMonth(t *testing.T) {
+  m := bebber.Month(1)
+  if m != time.January {
+    t.Error("Expect ", time.January ," was ", m)
+  }
+}
+
+func TestZeroDate(t *testing.T) {
+  z := bebber.GetZeroDate()
+  if z.IsZero() != true {
+    t.Error("Expect zero date was ", z)
+  }
+}
+
 func TestSpotTagType(t *testing.T) {
   ty, err := bebber.SpotTagType("test")
   if ty != "SimpleTag" {
