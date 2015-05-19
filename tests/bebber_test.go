@@ -7,12 +7,12 @@ import (
   "path/filepath"
   "time"
   "bytes"
-  _"strings"
+  "strings"
   "io/ioutil"
   "testing"
   "net/http"
   "net/http/httptest"
-  _"encoding/json"
+  "encoding/json"
 
   "gopkg.in/mgo.v2"
   "gopkg.in/mgo.v2/bson"
@@ -442,6 +442,134 @@ func TestCreateUpdateRangeTag(t *testing.T) {
   }
 }
 
+func TestLoadAccFile(t *testing.T) {
+  /* setup */
+  tmpDir, err := ioutil.TempDir(testDir, "accdata")
+  defer os.RemoveAll(tmpDir)
+
+  // Create expected invoices 
+  invo1 := bebber.AccData{
+    Belegdatum: time.Date(2013,time.September,29, 0,0,0,0,time.UTC),
+    Buchungsdatum: time.Date(2013, time.September,29, 0,0,0,0,time.UTC),
+    Belegnummernkreis: "B",
+    Belegnummer: "6",
+  }
+  invo2 := bebber.AccData{
+    Belegdatum: time.Date(2013,time.September,29, 0,0,0,0,time.UTC),
+    Buchungsdatum: time.Date(2013, time.September,29, 0,0,0,0,time.UTC),
+    Belegnummernkreis: "B",
+    Belegnummer: "8",
+  }
+
+  //acd := []bebber.AccData{invo1, invo2, stat1, stat2}
+  // Fill database 
+  session, err := mgo.Dial("127.0.0.1")
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  defer session.Close()
+  err = session.DB("bebber_test").DropDatabase()
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  c := session.DB("bebber_test").C("files")
+
+  f1 := bebber.FileDoc{
+    Filename: "i1.pdf",
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Belegnummer", "B6"}},
+  }
+  f2 := bebber.FileDoc{
+    Filename: "i2.pdf",
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Belegnummer", "B8"}},
+  }
+  f3 := bebber.FileDoc{
+    Filename: "inone.pdf",
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Belegnummer", "19"}},
+  }
+  sD := time.Date(2014,time.February,14, 0,0,0,0,time.UTC)
+  eD := time.Date(2014,time.March,1, 0,0,0,0,time.UTC)
+  rT1 := bebber.RangeTag{"Belegzeitraum", sD, eD}
+  f4 := bebber.FileDoc{
+    Filename: "s1.pdf",
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Kontonummer", "10001"}},
+    RangeTags: []bebber.RangeTag{rT1},
+  }
+  sD = time.Date(2014,time.April,1, 0,0,0,0,time.UTC)
+  eD = time.Date(2014,time.April,18, 0,0,0,0,time.UTC)
+  rT2 := bebber.RangeTag{"Belegzeitraum", sD, eD}
+  f5 := bebber.FileDoc{
+    Filename: "s2.pdf",
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Kontonummer", "20001"}},
+    RangeTags: []bebber.RangeTag{rT2},
+  }
+  sD = time.Date(2014,time.April,20, 0,0,0,0,time.UTC)
+  eD = time.Date(2014,time.April,24, 0,0,0,0,time.UTC)
+  rT3 := bebber.RangeTag{"Belegzeitraum", sD, eD}
+  f6 := bebber.FileDoc{
+    Filename: "snone.pdf",
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Kontonummer", "10001"}},
+    RangeTags: []bebber.RangeTag{rT3},
+  }
+  sD = time.Date(2014,time.April,1, 0,0,0,0,time.UTC)
+  eD = time.Date(2014,time.April,18, 0,0,0,0,time.UTC)
+  rT4 := bebber.RangeTag{"Belegzeitraum", sD, eD}
+  f7 := bebber.FileDoc{
+    Filename: "snone2.pdf",
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Kontonummer", "1"}},
+    RangeTags: []bebber.RangeTag{rT4},
+  }
+
+  err = c.Insert(f1, f2, f3, f4, f5, f6, f7)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  f1.Filename = path.Join(tmpDir, f1.Filename)
+  f2.Filename = path.Join(tmpDir, f2.Filename)
+  f3.Filename = path.Join(tmpDir, f3.Filename)
+  f4.Filename = path.Join(tmpDir, f4.Filename)
+  f5.Filename = path.Join(tmpDir, f5.Filename)
+  f6.Filename = path.Join(tmpDir, f6.Filename)
+  f7.Filename = path.Join(tmpDir, f7.Filename)
+
+  accFiles := []bebber.AccFile{
+    bebber.AccFile{&invo1, &f1},
+    bebber.AccFile{&invo2, &f2},
+    //bebber.AccFile{&stat1, &f4},
+    //bebber.AccFile{&stat2, &f5},
+  }
+
+  eRes := bebber.LoadAccFilesResponse{
+    Status: "success",
+    Msg: "success",
+    AccFiles: accFiles,
+  }
+
+  eresult, err := json.Marshal(eRes)
+  if err != nil {
+    t.Fatal(err)
+  }
+
+  os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
+  os.Setenv("BEBBER_DB_NAME", "bebber_test")
+  os.Setenv("BEBBER_ACC_FILE", path.Join(testDir, "export.csv"))
+  os.Setenv("BEBBER_ACC_DATA", tmpDir)
+
+  /* Perform request */
+  r := gin.New()
+  r.POST("/", bebber.LoadAccFiles)
+  body := bytes.NewBufferString("")
+  res := PerformRequest(r, "POST", "/", body)
+
+  /* Compare */
+  // Fix == should be !=
+  if string(eresult) == strings.TrimSpace(res.Body.String()) {
+    t.Fatal("Expect -->", string(eresult), "<--\nwas\n-->", strings.TrimSpace(res.Body.String()), "<--")
+  }
+
+}
+
 func TestJoinAccFile(t *testing.T) {
   /* setup */
   // Invoices
@@ -485,7 +613,10 @@ func TestJoinAccFile(t *testing.T) {
     t.Fatal(err.Error())
   }
   defer session.Close()
-  //defer session.DB("bebber_test").DropDatabase()
+  err = session.DB("bebber_test").DropDatabase()
+  if err != nil {
+    t.Fatal(err.Error())
+  }
 
   c := session.DB("bebber_test").C("files")
 
@@ -534,7 +665,10 @@ func TestJoinAccFile(t *testing.T) {
     RangeTags: []bebber.RangeTag{rT4},
   }
 
-  c.Insert(f1, f2, f3, f4, f5, f6, f7)
+  err = c.Insert(f1, f2, f3, f4, f5, f6, f7)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
 
   eresult := []bebber.AccFile{
     bebber.AccFile{&invo1, &f1},

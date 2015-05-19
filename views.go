@@ -1,6 +1,8 @@
 package bebber
 
 import (
+  _"fmt"
+  "path"
   "bytes"
   "errors"
   "net/http"
@@ -37,6 +39,12 @@ type LoadDirResponse struct {
 type AddTagsRequest struct {
   Filename string
   Tags []string
+}
+
+type LoadAccFilesResponse struct {
+  Status string
+  Msg string
+  AccFiles []AccFile
 }
 
 func LoadDir(c *gin.Context) {
@@ -185,4 +193,42 @@ func CreateUpdateDoc(tags []string, doc *FileDoc) error {
   }
 
   return nil
+}
+
+func LoadAccFiles(c *gin.Context) {
+  session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
+  if err != nil {
+    errMsg := "Db error - "+ err.Error()
+    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
+    return
+  }
+  defer session.Close()
+
+  collection := session.DB(GetSettings("BEBBER_DB_NAME")).C(DbFileCollection)
+
+  accData := []AccData{}
+  err = ReadAccFile(GetSettings("BEBBER_ACC_FILE"), &accData)
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    return
+  }
+
+  accFiles, err := JoinAccFile(accData, collection)
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    return
+  }
+
+  dataPath := GetSettings("BEBBER_ACC_DATA")
+  for i := range accFiles {
+    tmp := accFiles[i].FileDoc.Filename
+    accFiles[i].FileDoc.Filename = path.Join(dataPath, tmp)
+  }
+
+  res := LoadAccFilesResponse{
+          Status: "success",
+          AccFiles: accFiles,
+         }
+
+  c.JSON(http.StatusOK, res)
 }

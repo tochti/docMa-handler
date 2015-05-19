@@ -363,7 +363,7 @@ func JoinAccFile(data []AccData, collection *mgo.Collection) ([]AccFile, error) 
   }
 
   result := []AccFile{}
-  for _, r := range data {
+  for i, r := range data {
     q := FileDoc{
         ValueTags: []ValueTag{
             ValueTag{"Belegnummer", r.Belegnummernkreis + r.Belegnummer},
@@ -377,18 +377,19 @@ func JoinAccFile(data []AccData, collection *mgo.Collection) ([]AccFile, error) 
       docsJson, _ := json.Marshal(docs.List)
       errMsg := string(docsJson) +" have the same Belegnummer "+ r.Belegnummer
       return nil, errors.New(errMsg)
+    } else if len(docs.List) == 1 {
+      tmp := AccFile{&data[i], &docs.List[0]}
+      result = append(result, tmp)
     }
-    tmp := AccFile{&r, &docs.List[0]}
-    result = append(result, tmp)
   }
 
-  for _, r := range data {
+  for i, r := range data {
     if r.Belegnummer != "" {
       continue
     }
 
     docs := tmpResult.FindStat(r.Belegdatum, r.Sollkonto, r.Habenkonto)
-    tmp := AccFile{&r, &docs.List[0]}
+    tmp := AccFile{&data[i], &docs.List[0]}
     result = append(result, tmp)
   }
 
