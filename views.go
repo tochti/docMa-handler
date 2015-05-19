@@ -188,7 +188,11 @@ func CreateUpdateDoc(tags []string, doc *FileDoc) error {
     case "ValueTag":
       doc.ValueTags = append(doc.ValueTags, ParseValueTag(tag))
     case "RangeTag":
-      doc.RangeTags = append(doc.RangeTags, ParseRangeTag(tag))
+      tags, err := ParseRangeTag(tag)
+      if err != nil {
+        return err
+      }
+      doc.RangeTags = append(doc.RangeTags, *tags)
     }
   }
 

@@ -266,9 +266,15 @@ func TestParseGermanDate(t *testing.T) {
 }
 
 func TestMonth(t *testing.T) {
-  m := bebber.Month(1)
+  m, _ := bebber.Month(1)
   if m != time.January {
     t.Error("Expect ", time.January ," was ", m)
+  }
+
+  m, err := bebber.Month(13)
+  fmt.Println(err.Error())
+  if err == nil {
+    t.Error("Expect to throw an error due to month is out of range")
   }
 }
 

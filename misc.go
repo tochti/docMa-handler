@@ -68,11 +68,14 @@ type AccData struct {
 }
 
 type AccFile struct {
-  *AccData
-  *FileDoc
+  AccData *AccData
+  FileDoc *FileDoc
 }
 
-func Month(m int64) time.Month {
+func Month(m int64) (time.Month, error) {
+  if (m < 1) || (m > 12) {
+    return time.April, errors.New("Month out of range")
+  }
   months := []time.Month{
       time.January,
       time.February,
@@ -88,7 +91,7 @@ func Month(m int64) time.Month {
       time.December,
     }
 
-  return months[m-1]
+  return months[m-1], nil
 }
 
 func GetSettings(k string) string {
@@ -171,30 +174,50 @@ func ParseValueTag(tag string) ValueTag {
   return ValueTag{key, value}
 }
 
-func ParseRangeTag(tag string) RangeTag {
+func ParseRangeTag(tag string) (*RangeTag, error) {
   tmp := strings.Split(tag, TagKeyValueSep)
   key := tmp[0]
   val := strings.SplitAfter(tmp[1], RangeSep)
 
   var sDate time.Time
   var eDate time.Time
+  var err error
   if val[0] == RangeSep {
-    eDate = ParseDate(val[1])
+    eDate, err = ParseDate(val[1])
+    if err != nil {
+      return nil, err
+    }
   } else if val[1] == "" {
-    sDate = ParseDate(strings.Replace(val[0], RangeSep, "", 1))
+    sDate, err = ParseDate(strings.Replace(val[0], RangeSep, "", 1))
+    if err != nil {
+      return nil, err
+    }
   } else {
-  sDate = ParseDate(strings.Replace(val[0], RangeSep, "", 1))
-    eDate = ParseDate(val[1])
+    sDate, err = ParseDate(strings.Replace(val[0], RangeSep, "", 1))
+    if err != nil {
+      return nil, err
+    }
+    eDate, err = ParseDate(val[1])
+    if err != nil {
+      return nil, err
+    }
   }
 
-  return RangeTag{Tag: key, Start: sDate, End: eDate}
+  return &RangeTag{Tag: key, Start: sDate, End: eDate}, nil
 }
 
-func ParseDate(d string) time.Time {
-    year, _ := strconv.ParseInt(d[4:8], 10, 0)
-    month, _ := strconv.ParseInt(d[2:4], 10, 0)
-    day, _ := strconv.ParseInt(d[0:2], 10, 0)
-    return time.Date(int(year), Month(int64(month)), int(day), 0, 0, 0, 0, time.UTC)
+func ParseDate(d string) (time.Time, error) {
+    year, err := strconv.ParseInt(d[4:8], 10, 0)
+    month, err := strconv.ParseInt(d[2:4], 10, 0)
+    day, err := strconv.ParseInt(d[0:2], 10, 0)
+    if err != nil {
+      return GetZeroDate(), err
+    }
+    m, err := Month(int64(month))
+    if err != nil {
+      return GetZeroDate(), err
+    }
+    return time.Date(int(year), m, int(day), 0, 0, 0, 0, time.UTC), nil
 
 }
 
@@ -507,8 +530,11 @@ func ParseGermanDate(d string, sep string) (time.Time, error) {
   if err != nil {
     return GetZeroDate(), err
   }
-
-  return time.Date(int(ytmp), Month(mtmp), int(dtmp), 0, 0, 0, 0, time.UTC), nil
+  m, err := Month(mtmp)
+  if err != nil {
+    return GetZeroDate(), err
+  }
+  return time.Date(int(ytmp), m, int(dtmp), 0, 0, 0, 0, time.UTC), nil
 }
 
 func GetZeroDate() time.Time {
