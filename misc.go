@@ -14,6 +14,7 @@ import (
   "encoding/json"
 
   "gopkg.in/mgo.v2"
+  "gopkg.in/mgo.v2/bson"
   "github.com/gin-gonic/gin"
 )
 
@@ -44,6 +45,10 @@ type FileDoc struct {
   SimpleTags []SimpleTag
   RangeTags []RangeTag
   ValueTags []ValueTag
+}
+
+type FileDocs struct {
+  List []FileDoc
 }
 
 type AccData struct {
@@ -303,8 +308,187 @@ func UnmarshalAccData(reader *csv.Reader, data *AccData) error {
   return nil
 }
 
-func JoinAccFile(data []AccData, collection *mgo.Collection, result *[]AccFile) error {
-  return nil
+func JoinAccFile(data []AccData, collection *mgo.Collection) ([]AccFile, error) {
+
+  fItems := []bson.M{}
+  var tmp bson.M
+  for i := range data {
+    if data[i].Belegnummer == "" {
+      hKonto := strconv.FormatInt(data[i].Habenkonto, 10)
+      sKonto := strconv.FormatInt(data[i].Sollkonto, 10)
+
+      tmp = bson.M{"$and": []bson.M{
+
+          bson.M{
+            "rangetags": bson.M{
+              "$elemMatch": bson.M{
+                "tag": "Belegzeitraum",
+                "start": bson.M{"$lte": data[i].Belegdatum},
+                "end": bson.M{"$gte": data[i].Belegdatum},
+              },
+            },
+          },
+
+          bson.M{
+            "valuetags": bson.M{
+              "$elemMatch": bson.M{
+                "tag": "Kontonummer",
+                "value": bson.M{"$in": []string{
+                  hKonto,
+                  sKonto,
+                }},
+              },
+            },
+          },
+
+      }}
+      fItems = append(fItems, tmp)
+    } else {
+      no := data[i].Belegnummernkreis + data[i].Belegnummer
+      tmp = bson.M{"valuetags":
+                bson.M{"$elemMatch":
+                  bson.M{"tag": "Belegnummer", "value": no},
+              },
+            }
+      fItems = append(fItems, tmp)
+    }
+  }
+
+  tmpResult := FileDocsNew([]FileDoc{})
+  filter := bson.M{"$or": fItems}
+  iter := collection.Find(filter).Iter()
+  err := iter.All(&tmpResult.List)
+  if err != nil {
+    return nil, err
+  }
+
+  result := []AccFile{}
+  for _, r := range data {
+    q := FileDoc{
+        ValueTags: []ValueTag{
+            ValueTag{"Belegnummer", r.Belegnummernkreis + r.Belegnummer},
+          },
+        }
+    docs := tmpResult.FindFile(q)
+
+    if len(docs.List) == 0 {
+      continue
+    } else if len(docs.List) > 1 {
+      docsJson, _ := json.Marshal(docs.List)
+      errMsg := string(docsJson) +" have the same Belegnummer "+ r.Belegnummer
+      return nil, errors.New(errMsg)
+    }
+    tmp := AccFile{&r, &docs.List[0]}
+    result = append(result, tmp)
+  }
+
+  for _, r := range data {
+    if r.Belegnummer != "" {
+      continue
+    }
+
+    docs := tmpResult.FindStat(r.Belegdatum, r.Sollkonto, r.Habenkonto)
+    tmp := AccFile{&r, &docs.List[0]}
+    result = append(result, tmp)
+  }
+
+  return result, nil
+}
+
+func FileDocsNew(docs []FileDoc) FileDocs {
+  return FileDocs{docs}
+}
+
+func (fd FileDocs) FindStat(belegdatum time.Time, sollkonto int64, habenkonto int64) FileDocs {
+
+  sKonto := strconv.FormatInt(sollkonto, 10)
+  hKonto := strconv.FormatInt(habenkonto, 10)
+
+  tmp := []FileDoc{}
+  for i, f := range fd.List {
+    findCount := 0
+
+    for _, t := range f.RangeTags {
+      if (t.Tag == "Belegzeitraum") &&
+         ((t.Start.Equal(belegdatum) || t.End.Equal(belegdatum)) ||
+         (t.Start.Before(belegdatum)) && (t.End.After(belegdatum))) {
+           findCount += 1
+      }
+    }
+
+    for _, t := range f.ValueTags {
+      if (t.Tag == "Kontonummer") &&
+         ((t.Value == sKonto) || (t.Value == hKonto)) {
+           findCount += 1
+      }
+    }
+
+    if findCount == 2 {
+      tmp = append(tmp, fd.List[i])
+    }
+
+  }
+
+  return FileDocsNew(tmp)
+
+}
+
+func (fd FileDocs) FindFile(query FileDoc) FileDocs {
+  resDocs := []FileDoc{}
+  for _, fileDoc := range fd.List {
+    if (query.Filename != "") && (fileDoc.Filename != query.Filename) {
+      continue
+    }
+    if len(query.SimpleTags) != 0 {
+      findCount := 0
+      for _, t1 := range query.SimpleTags {
+        for _, t2 := range fileDoc.SimpleTags {
+          if (t1.Tag == t2.Tag) {
+            findCount += 1
+          }
+        }
+      }
+
+      if findCount != len(query.SimpleTags) {
+        continue
+      }
+
+    }
+    if len(query.ValueTags) != 0 {
+      findCount := 0
+      for _, t1 := range query.ValueTags {
+        for _, t2 := range fileDoc.ValueTags {
+          if (t1.Tag == t2.Tag) && (t1.Value == t2.Value) {
+            findCount += 1
+          }
+        }
+      }
+
+      if findCount != len(query.ValueTags) {
+        continue
+      }
+    }
+    if len(query.RangeTags) != 0 {
+      findCount := 0
+      for _, t1 := range query.RangeTags {
+        for _, t2 := range fileDoc.RangeTags {
+          if (t1.Tag == t2.Tag) &&
+             (t1.Start == t2.Start) &&
+             (t1.End == t1.End) {
+            findCount += 1
+          }
+        }
+      }
+
+      if findCount != len(query.ValueTags) {
+        continue
+      }
+    }
+
+    resDocs = append(resDocs, fileDoc)
+  }
+
+  return FileDocsNew(resDocs)
 }
 
 func ParseGermanDate(d string, sep string) (time.Time, error) {

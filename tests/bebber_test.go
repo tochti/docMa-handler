@@ -2,7 +2,7 @@ package bebber
 
 import (
   "os"
-  _"fmt"
+  "fmt"
   "path"
   "path/filepath"
   "time"
@@ -484,6 +484,8 @@ func TestJoinAccFile(t *testing.T) {
   if err != nil {
     t.Fatal(err.Error())
   }
+  defer session.Close()
+  //defer session.DB("bebber_test").DropDatabase()
 
   c := session.DB("bebber_test").C("files")
 
@@ -523,8 +525,16 @@ func TestJoinAccFile(t *testing.T) {
     ValueTags: []bebber.ValueTag{bebber.ValueTag{"Kontonummer", "10001"}},
     RangeTags: []bebber.RangeTag{rT3},
   }
+  sD = time.Date(2014,time.April,1, 0,0,0,0,time.UTC)
+  eD = time.Date(2014,time.April,18, 0,0,0,0,time.UTC)
+  rT4 := bebber.RangeTag{"Belegzeitraum", sD, eD}
+  f7 := bebber.FileDoc{
+    Filename: "snone2.pdf",
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Kontonummer", "1"}},
+    RangeTags: []bebber.RangeTag{rT4},
+  }
 
-  c.Insert(f1, f2, f3, f4, f5, f6)
+  c.Insert(f1, f2, f3, f4, f5, f6, f7)
 
   eresult := []bebber.AccFile{
     bebber.AccFile{&invo1, &f1},
@@ -533,18 +543,84 @@ func TestJoinAccFile(t *testing.T) {
     bebber.AccFile{&stat2, &f5},
   }
 
-  result := []bebber.AccFile{}
-  err = bebber.JoinAccFile(acd, c, &result)
+  result, err := bebber.JoinAccFile(acd, c)
 
   if err != nil {
     t.Fatal(err.Error())
   }
 
+  if len(result) != len(eresult) {
+    t.Fatal("Expect len ", len(eresult), " was ", len(result))
+    fmt.Println("Expect len ", len(eresult), " was ", len(result))
+  }
+
   for i := range eresult {
-    if eresult[i].FileDoc.Filename == result[i].FileDoc.Filename {
-      t.Error("Expect ", eresult[i].FileDoc.Filename, "was",
+    if eresult[i].FileDoc.Filename != result[i].FileDoc.Filename {
+      t.Error("Expect ", eresult[i].FileDoc.Filename, " was ",
               result[i].FileDoc.Filename)
     }
   }
 
+}
+
+func TestFileDocsMethods(t *testing.T) {
+  sT := time.Date(2014, time.April, 1, 0, 0, 0, 0, time.UTC)
+  eT := time.Date(2014, time.April, 2, 0, 0, 0, 0, time.UTC)
+  doc1 := bebber.FileDoc{
+    "test1.txt",
+    []bebber.SimpleTag{bebber.SimpleTag{"sTag1"}},
+    []bebber.RangeTag{
+        bebber.RangeTag{"rTag1", sT, eT},
+        bebber.RangeTag{"rTag2", sT, eT},
+      },
+    []bebber.ValueTag{bebber.ValueTag{"vTag1", "value1"}},
+  }
+  sT2 := time.Date(2015, time.April, 1, 0, 0, 0, 0, time.UTC)
+  eT2 := time.Date(2015, time.April, 2, 0, 0, 0, 0, time.UTC)
+  doc2 := bebber.FileDoc{
+    "test1.txt",
+    []bebber.SimpleTag{bebber.SimpleTag{"sTag1"}},
+    []bebber.RangeTag{
+        bebber.RangeTag{"rTag1", sT, eT},
+        bebber.RangeTag{"rTag2", sT2, eT2},
+      },
+    []bebber.ValueTag{bebber.ValueTag{"vTag1", "value2"}},
+  }
+  doc3 := bebber.FileDoc{
+    "test1.txt",
+    []bebber.SimpleTag{bebber.SimpleTag{"sTag1"}},
+    []bebber.RangeTag{},
+    []bebber.ValueTag{},
+  }
+  doc4 := bebber.FileDoc{
+    "notinlist.txt",
+    []bebber.SimpleTag{},
+    []bebber.RangeTag{},
+    []bebber.ValueTag{},
+  }
+
+  fd := bebber.FileDocsNew([]bebber.FileDoc{doc1, doc2, doc3, doc4})
+
+  findDoc := bebber.FileDoc{
+    Filename: "test1.txt",
+  }
+  res := fd.FindFile(findDoc)
+  if len(res.List) != 3 {
+    t.Fatal("Expect 2 was ", len(res.List))
+  }
+  if (res.List[0].Filename != "test1.txt") ||
+     (res.List[1].Filename != "test1.txt") ||
+     (res.List[2].Filename != "test1.txt") {
+    t.Fatal("Expect two times test1.txt was ",
+             res.List[0].Filename, res.List[1].Filename)
+  }
+
+  findDoc = bebber.FileDoc{
+    Filename: "test1.txt",
+    RangeTags: []bebber.RangeTag{bebber.RangeTag{"rTag1", sT, eT}},
+  }
+  res = res.FindFile(findDoc)
+  if len(res.List) != 1 {
+    t.Fatal("Expect 1 was ", len(res.List))
+  }
 }
