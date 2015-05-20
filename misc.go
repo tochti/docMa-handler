@@ -412,6 +412,9 @@ func JoinAccFile(data []AccData, collection *mgo.Collection) ([]AccFile, error) 
     }
 
     docs := tmpResult.FindStat(r.Belegdatum, r.Sollkonto, r.Habenkonto)
+    if len(docs.List) == 0 {
+      continue
+    }
     tmp := AccFile{&data[i], &docs.List[0]}
     result = append(result, tmp)
   }
