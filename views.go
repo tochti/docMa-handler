@@ -2,7 +2,6 @@ package bebber
 
 import (
   _"fmt"
-  "path"
   "bytes"
   "errors"
   "net/http"
@@ -221,12 +220,6 @@ func LoadAccFiles(c *gin.Context) {
   if err != nil {
     c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
     return
-  }
-
-  dataPath := GetSettings("BEBBER_ACC_DATA")
-  for i := range accFiles {
-    tmp := accFiles[i].FileDoc.Filename
-    accFiles[i].FileDoc.Filename = path.Join(dataPath, tmp)
   }
 
   res := LoadAccFilesResponse{
