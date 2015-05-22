@@ -272,7 +272,6 @@ func TestMonth(t *testing.T) {
   }
 
   m, err := bebber.Month(13)
-  fmt.Println(err.Error())
   if err == nil {
     t.Error("Expect to throw an error due to month is out of range")
   }
