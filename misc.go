@@ -331,7 +331,7 @@ func UnmarshalAccData(reader *csv.Reader, data *AccData) error {
   return nil
 }
 
-func JoinAccFile(data []AccData, collection *mgo.Collection) ([]AccFile, error) {
+func JoinAccFile(data []AccData, collection *mgo.Collection, validCSV bool) ([]AccFile, error) {
 
   fItems := []bson.M{}
   var tmp bson.M
@@ -410,6 +410,7 @@ func JoinAccFile(data []AccData, collection *mgo.Collection) ([]AccFile, error) 
     } else if len(docs.List) == 1 {
       tmp := AccFile{&data[i], &docs.List[0]}
       result = append(result, tmp)
+      data[i] = AccData{}
     }
   }
   for i, r := range data {
@@ -419,9 +420,38 @@ func JoinAccFile(data []AccData, collection *mgo.Collection) ([]AccFile, error) 
     }
     tmp := AccFile{&data[i], &docs.List[0]}
     result = append(result, tmp)
+    data[i] = AccData{}
+  }
+
+  if validCSV == true {
+    for _,r := range data {
+      if r.Empty() == false {
+        fmt.Println(r)
+      }
+    }
   }
 
   return result, nil
+}
+
+func (ad AccData) Empty() bool {
+  if (ad.Belegdatum.IsZero()) &&
+    (ad.Buchungsdatum.IsZero()) &&
+    (ad.Belegnummernkreis == "") &&
+    (ad.Belegnummer == "") &&
+    (ad.Buchungstext == "") &&
+    (ad.Buchungsbetrag == 0) &&
+    (ad.Sollkonto == 0) &&
+    (ad.Habenkonto == 0) &&
+    (ad.Steuerschlüssel == 0) &&
+    (ad.Kostenstelle1 == "") &&
+    (ad.Kostenstelle2 == "") &&
+    (ad.BuchungsbetragEuro == 0.0) &&
+    (ad.Waehrung == "") {
+      return true
+  } else {
+    return false
+  }
 }
 
 func FileDocsNew(docs []FileDoc) FileDocs {

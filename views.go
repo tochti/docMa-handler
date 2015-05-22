@@ -216,7 +216,12 @@ func LoadAccFiles(c *gin.Context) {
     return
   }
 
-  accFiles, err := JoinAccFile(accData, collection)
+  validCSV := false
+  r, err := c.Get("validCSV")
+  if err == nil {
+    validCSV = r.(bool)
+  }
+  accFiles, err := JoinAccFile(accData, collection, validCSV)
   if err != nil {
     c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
     return

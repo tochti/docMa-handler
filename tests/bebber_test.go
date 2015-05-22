@@ -635,7 +635,17 @@ func TestJoinAccFile(t *testing.T) {
     Habenkonto: 20001,
   }
 
-  acd := []bebber.AccData{invo1, invo2, stat1, stat2, stat3}
+  // Tmp statement to check if validCSV works !bad!
+  stat4 := bebber.AccData{
+    Belegdatum: time.Date(2013,time.April,6, 0,0,0,0,time.UTC),
+    Buchungsdatum: time.Date(2013, time.April,6, 0,0,0,0,time.UTC),
+    Belegnummernkreis: "S",
+    Belegnummer: "99999",
+    Sollkonto: 0,
+    Habenkonto: 0,
+  }
+
+  acd := []bebber.AccData{invo1, invo2, stat1, stat2, stat3, stat4}
   // Fill database 
   session, err := mgo.Dial("127.0.0.1")
   if err != nil {
@@ -709,7 +719,7 @@ func TestJoinAccFile(t *testing.T) {
     bebber.AccFile{&stat3, &f5},
   }
 
-  result, err := bebber.JoinAccFile(acd, c)
+  result, err := bebber.JoinAccFile(acd, c, false)
 
   if err != nil {
     t.Fatal(err.Error())
@@ -788,5 +798,17 @@ func TestFileDocsMethods(t *testing.T) {
   res = res.FindFile(findDoc)
   if len(res.List) != 1 {
     t.Fatal("Expect 1 was ", len(res.List))
+  }
+}
+
+func TestEmptyAccData(t *testing.T) {
+  ad := bebber.AccData{}
+  if ad.Empty() == false {
+    t.Fatal("Expect true was false")
+  }
+
+  ad = bebber.AccData{Belegnummer: "1"}
+  if ad.Empty() == true {
+    t.Fatal("Expect false was true")
   }
 }
