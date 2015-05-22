@@ -466,6 +466,22 @@ func TestLoadAccFile(t *testing.T) {
     Belegnummernkreis: "B",
     Belegnummer: "8",
   }
+  invo3 := bebber.AccData{
+    Belegdatum: time.Date(2013,time.September,29, 0,0,0,0,time.UTC),
+    Buchungsdatum: time.Date(2013, time.September,29, 0,0,0,0,time.UTC),
+    Belegnummernkreis: "S",
+    Belegnummer: "9",
+    Sollkonto: 1210,
+    Habenkonto: 0,
+  }
+  invo4 := bebber.AccData{
+    Belegdatum: time.Date(2013,time.September,29, 0,0,0,0,time.UTC),
+    Buchungsdatum: time.Date(2013, time.September,29, 0,0,0,0,time.UTC),
+    Belegnummernkreis: "S",
+    Belegnummer: "10",
+    Sollkonto: 0,
+    Habenkonto: 1211,
+  }
 
   //acd := []bebber.AccData{invo1, invo2, stat1, stat2}
   // Fill database 
@@ -493,20 +509,20 @@ func TestLoadAccFile(t *testing.T) {
     Filename: "inone.pdf",
     ValueTags: []bebber.ValueTag{bebber.ValueTag{"Belegnummer", "19"}},
   }
-  sD := time.Date(2014,time.February,14, 0,0,0,0,time.UTC)
-  eD := time.Date(2014,time.March,1, 0,0,0,0,time.UTC)
+  sD := time.Date(2013,time.September,29, 0,0,0,0,time.UTC)
+  eD := time.Date(2013,time.September,29, 0,0,0,0,time.UTC)
   rT1 := bebber.RangeTag{"Belegzeitraum", sD, eD}
   f4 := bebber.FileDoc{
     Filename: "s1.pdf",
-    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Kontonummer", "10001"}},
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Kontonummer", "1210"}},
     RangeTags: []bebber.RangeTag{rT1},
   }
-  sD = time.Date(2014,time.April,1, 0,0,0,0,time.UTC)
-  eD = time.Date(2014,time.April,18, 0,0,0,0,time.UTC)
+  sD = time.Date(2014,time.September,29, 0,0,0,0,time.UTC)
+  eD = time.Date(2014,time.September,29, 0,0,0,0,time.UTC)
   rT2 := bebber.RangeTag{"Belegzeitraum", sD, eD}
   f5 := bebber.FileDoc{
     Filename: "s2.pdf",
-    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Kontonummer", "20001"}},
+    ValueTags: []bebber.ValueTag{bebber.ValueTag{"Kontonummer", "1211"}},
     RangeTags: []bebber.RangeTag{rT2},
   }
   sD = time.Date(2014,time.April,20, 0,0,0,0,time.UTC)
@@ -542,8 +558,8 @@ func TestLoadAccFile(t *testing.T) {
   accFiles := []bebber.AccFile{
     bebber.AccFile{&invo1, &f1},
     bebber.AccFile{&invo2, &f2},
-    //bebber.AccFile{&stat1, &f4},
-    //bebber.AccFile{&stat2, &f5},
+    bebber.AccFile{&invo3, &f4},
+    bebber.AccFile{&invo4, &f5},
   }
 
   eRes := bebber.LoadAccFilesResponse{
@@ -584,35 +600,43 @@ func TestJoinAccFile(t *testing.T) {
     Buchungsdatum: time.Date(2014, time.March,2, 0,0,0,0,time.UTC),
     Belegnummernkreis: "1",
     Belegnummer: "1",
-    Sollkonto: 10001,
-    Habenkonto: 20001,
+    Sollkonto: 0,
+    Habenkonto: 0,
   }
   invo2 := bebber.AccData{
     Belegdatum: time.Date(2014,time.March,1, 0,0,0,0,time.UTC),
     Buchungsdatum: time.Date(2014, time.March,2, 0,0,0,0,time.UTC),
     Belegnummernkreis: "1",
     Belegnummer: "2",
-    Sollkonto: 10001,
-    Habenkonto: 20001,
+    Sollkonto: 0,
+    Habenkonto: 0,
   }
   stat1 := bebber.AccData{
     Belegdatum: time.Date(2014,time.March,1, 0,0,0,0,time.UTC),
     Buchungsdatum: time.Date(2014, time.March,2, 0,0,0,0,time.UTC),
-    Belegnummernkreis: "",
-    Belegnummer: "",
+    Belegnummernkreis: "S",
+    Belegnummer: "3",
     Sollkonto: 10001,
-    Habenkonto: 20001,
+    Habenkonto: 0,
   }
   stat2 := bebber.AccData{
     Belegdatum: time.Date(2014,time.April,1, 0,0,0,0,time.UTC),
     Buchungsdatum: time.Date(2014, time.April,6, 0,0,0,0,time.UTC),
-    Belegnummernkreis: "",
-    Belegnummer: "",
-    Sollkonto: 10001,
+    Belegnummernkreis: "S",
+    Belegnummer: "4",
+    Sollkonto: 0,
+    Habenkonto: 20001,
+  }
+  stat3 := bebber.AccData{
+    Belegdatum: time.Date(2014,time.April,6, 0,0,0,0,time.UTC),
+    Buchungsdatum: time.Date(2014, time.April,6, 0,0,0,0,time.UTC),
+    Belegnummernkreis: "S",
+    Belegnummer: "5",
+    Sollkonto: 0,
     Habenkonto: 20001,
   }
 
-  acd := []bebber.AccData{invo1, invo2, stat1, stat2}
+  acd := []bebber.AccData{invo1, invo2, stat1, stat2, stat3}
   // Fill database 
   session, err := mgo.Dial("127.0.0.1")
   if err != nil {
@@ -654,6 +678,7 @@ func TestJoinAccFile(t *testing.T) {
     ValueTags: []bebber.ValueTag{bebber.ValueTag{"Kontonummer", "20001"}},
     RangeTags: []bebber.RangeTag{rT2},
   }
+  // Zeitraum wrong, Kontonummer right. 
   sD = time.Date(2014,time.April,20, 0,0,0,0,time.UTC)
   eD = time.Date(2014,time.April,24, 0,0,0,0,time.UTC)
   rT3 := bebber.RangeTag{"Belegzeitraum", sD, eD}
@@ -662,6 +687,7 @@ func TestJoinAccFile(t *testing.T) {
     ValueTags: []bebber.ValueTag{bebber.ValueTag{"Kontonummer", "10001"}},
     RangeTags: []bebber.RangeTag{rT3},
   }
+  // Zeitraum right, Kontonummer wrong.
   sD = time.Date(2014,time.April,1, 0,0,0,0,time.UTC)
   eD = time.Date(2014,time.April,18, 0,0,0,0,time.UTC)
   rT4 := bebber.RangeTag{"Belegzeitraum", sD, eD}
@@ -681,6 +707,7 @@ func TestJoinAccFile(t *testing.T) {
     bebber.AccFile{&invo2, &f2},
     bebber.AccFile{&stat1, &f4},
     bebber.AccFile{&stat2, &f5},
+    bebber.AccFile{&stat3, &f5},
   }
 
   result, err := bebber.JoinAccFile(acd, c)

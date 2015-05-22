@@ -336,45 +336,52 @@ func JoinAccFile(data []AccData, collection *mgo.Collection) ([]AccFile, error) 
   fItems := []bson.M{}
   var tmp bson.M
   for i := range data {
-    if data[i].Belegnummer == "" {
-      hKonto := strconv.FormatInt(data[i].Habenkonto, 10)
-      sKonto := strconv.FormatInt(data[i].Sollkonto, 10)
+    // Create mgo find query for each account dataset
+    hKonto := strconv.FormatInt(data[i].Habenkonto, 10)
+    sKonto := strconv.FormatInt(data[i].Sollkonto, 10)
+    no := data[i].Belegnummernkreis + data[i].Belegnummer
 
-      tmp = bson.M{"$and": []bson.M{
+    tmp = bson.M{"$or": []bson.M{
 
-          bson.M{
-            "rangetags": bson.M{
-              "$elemMatch": bson.M{
-                "tag": "Belegzeitraum",
-                "start": bson.M{"$lte": data[i].Belegdatum},
-                "end": bson.M{"$gte": data[i].Belegdatum},
-              },
+      // Find invoices
+      bson.M{
+        "valuetags": bson.M{
+          "$elemMatch": bson.M{
+            "tag": "Belegnummer",
+            "value": no,
+          },
+        },
+      },
+
+      // Find statments
+      bson.M{"$and": []bson.M{
+
+        bson.M{
+          "rangetags": bson.M{
+            "$elemMatch": bson.M{
+              "tag": "Belegzeitraum",
+              "start": bson.M{"$lte": data[i].Belegdatum},
+              "end": bson.M{"$gte": data[i].Belegdatum},
             },
           },
+        },
 
-          bson.M{
-            "valuetags": bson.M{
-              "$elemMatch": bson.M{
-                "tag": "Kontonummer",
-                "value": bson.M{"$in": []string{
-                  hKonto,
-                  sKonto,
-                }},
-              },
+        bson.M{
+          "valuetags": bson.M{
+            "$elemMatch": bson.M{
+              "tag": "Kontonummer",
+              "value": bson.M{"$in": []string{
+                hKonto,
+                sKonto,
+              }},
             },
           },
+        },
+      }},
 
-      }}
-      fItems = append(fItems, tmp)
-    } else {
-      no := data[i].Belegnummernkreis + data[i].Belegnummer
-      tmp = bson.M{"valuetags":
-                bson.M{"$elemMatch":
-                  bson.M{"tag": "Belegnummer", "value": no},
-              },
-            }
-      fItems = append(fItems, tmp)
-    }
+    }}
+
+    fItems = append(fItems, tmp)
   }
 
   tmpResult := FileDocsNew([]FileDoc{})
@@ -405,12 +412,7 @@ func JoinAccFile(data []AccData, collection *mgo.Collection) ([]AccFile, error) 
       result = append(result, tmp)
     }
   }
-
   for i, r := range data {
-    if r.Belegnummer != "" {
-      continue
-    }
-
     docs := tmpResult.FindStat(r.Belegdatum, r.Sollkonto, r.Habenkonto)
     if len(docs.List) == 0 {
       continue
@@ -434,19 +436,19 @@ func (fd FileDocs) FindStat(belegdatum time.Time, sollkonto int64, habenkonto in
   tmp := []FileDoc{}
   for i, f := range fd.List {
     findCount := 0
-
     for _, t := range f.RangeTags {
       if (t.Tag == "Belegzeitraum") &&
          ((t.Start.Equal(belegdatum) || t.End.Equal(belegdatum)) ||
          (t.Start.Before(belegdatum)) && (t.End.After(belegdatum))) {
            findCount += 1
+           break
       }
     }
-
     for _, t := range f.ValueTags {
       if (t.Tag == "Kontonummer") &&
          ((t.Value == sKonto) || (t.Value == hKonto)) {
            findCount += 1
+           break
       }
     }
 
