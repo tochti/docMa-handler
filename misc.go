@@ -23,8 +23,6 @@ const (
   TagKeyValueSep = ":"
 )
 
-
-
 type SimpleTag struct {
   Tag string
 }
@@ -68,8 +66,8 @@ type AccData struct {
 }
 
 type AccFile struct {
-  AccData *AccData
-  FileDoc *FileDoc
+  AccData AccData
+  FileDoc FileDoc
 }
 
 func Month(m int64) (time.Month, error) {
@@ -408,7 +406,7 @@ func JoinAccFile(data []AccData, collection *mgo.Collection, validCSV bool) ([]A
       errMsg := string(docsJson) +" have the same Belegnummer "+ r.Belegnummer
       return nil, errors.New(errMsg)
     } else if len(docs.List) == 1 {
-      tmp := AccFile{&data[i], &docs.List[0]}
+      tmp := AccFile{data[i], docs.List[0]}
       result = append(result, tmp)
       data[i] = AccData{}
     }
@@ -418,16 +416,25 @@ func JoinAccFile(data []AccData, collection *mgo.Collection, validCSV bool) ([]A
     if len(docs.List) == 0 {
       continue
     }
-    tmp := AccFile{&data[i], &docs.List[0]}
+    tmp := AccFile{data[i], docs.List[0]}
     result = append(result, tmp)
     data[i] = AccData{}
   }
 
   if validCSV == true {
+    fmt.Println("Prüfe Buchhaltungsdaten")
+    valid := true
     for _,r := range data {
       if r.Empty() == false {
-        fmt.Println(r)
+        date := DateToString(r.Belegdatum)
+        fmt.Println("\t E: ", date, r.Belegnummernkreis,
+                    r.Belegnummer, r.Buchungstext, r.Sollkonto,
+                    r.Habenkonto, r.Buchungsbetrag)
+        valid = false
       }
+    }
+    if valid {
+      fmt.Println("\tAlles OK!")
     }
   }
 
@@ -600,4 +607,10 @@ func ParseAccInt(s string) (int64, error) {
   }
 
   return in, nil
+}
+
+func DateToString(t time.Time) (string) {
+  y, m, d := t.Date()
+  date := fmt.Sprintf("%02d.%02d.%d", d, int(m), y)
+  return date
 }

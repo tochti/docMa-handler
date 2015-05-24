@@ -555,10 +555,10 @@ func TestLoadAccFile(t *testing.T) {
   f7.Filename = path.Join(tmpDir, f7.Filename)
 
   accFiles := []bebber.AccFile{
-    bebber.AccFile{&invo1, &f1},
-    bebber.AccFile{&invo2, &f2},
-    bebber.AccFile{&invo3, &f4},
-    bebber.AccFile{&invo4, &f5},
+    bebber.AccFile{invo1, f1},
+    bebber.AccFile{invo2, f2},
+    bebber.AccFile{invo3, f4},
+    bebber.AccFile{invo4, f5},
   }
 
   eRes := bebber.LoadAccFilesResponse{
@@ -712,11 +712,11 @@ func TestJoinAccFile(t *testing.T) {
   }
 
   eresult := []bebber.AccFile{
-    bebber.AccFile{&invo1, &f1},
-    bebber.AccFile{&invo2, &f2},
-    bebber.AccFile{&stat1, &f4},
-    bebber.AccFile{&stat2, &f5},
-    bebber.AccFile{&stat3, &f5},
+    bebber.AccFile{invo1, f1},
+    bebber.AccFile{invo2, f2},
+    bebber.AccFile{stat1, f4},
+    bebber.AccFile{stat2, f5},
+    bebber.AccFile{stat3, f5},
   }
 
   result, err := bebber.JoinAccFile(acd, c, false)
