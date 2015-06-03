@@ -34,7 +34,7 @@ func TestVerifyAuthOK(t *testing.T) {
   h := gin.New()
   h.GET("/", func(c *gin.Context){c.JSON(http.StatusOK, gin.H{"some":"thing"})}, Auth())
   header := http.Header{}
-  header.Add("X-AUTH-TOKEN", "123")
+  header.Add("X-XSRF-TOKEN", "123")
   body := bytes.NewBufferString("")
   resp := PerformRequestHeader(h, "GET", "/", body, &header)
 
@@ -57,10 +57,6 @@ func TestVerifyAuthFail(t *testing.T) {
     t.Fatal(err)
   }
   defer session.Close()
-  sha1Pass := sha1.Sum([]byte("test"))
-  user := bson.M{"username": "loveMaster_999", "password": sha1Pass}
-  usersC := session.DB("bebber_test").C("users")
-  usersC.Insert(user)
   sessionsC := session.DB("bebber_test").C("sessions")
   createDate := time.Now()
   sessionsC.Insert(bson.M{"key": "12", "user": "loveMaster_999", "createDate": createDate})
@@ -69,7 +65,7 @@ func TestVerifyAuthFail(t *testing.T) {
   h := gin.New()
   h.GET("/", Auth(), func(c *gin.Context){c.JSON(http.StatusOK, gin.H{"some":"thing"})})
   header := http.Header{}
-  header.Add("X-AUTH-TOKEN", "123")
+  header.Add("X-XSRF-TOKEN", "123")
   body := bytes.NewBufferString("")
   resp := PerformRequestHeader(h, "GET", "/", body, &header)
 
