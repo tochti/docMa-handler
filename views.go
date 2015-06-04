@@ -18,7 +18,7 @@ import (
 
 const (
   DbFileCollection = "files"
-  usersCollection = "users"
+  UsersCollection = "users"
 )
 
 type ErrorResponse struct {
@@ -60,6 +60,12 @@ type UserSession struct {
   Token string
   User string
   Expires time.Time
+}
+
+type User struct {
+  Username string
+  Password string
+  Dirs map[string]string
 }
 
 func LoadDir(c *gin.Context) {
@@ -269,7 +275,7 @@ func Login(c *gin.Context) {
   seed := rand.New(rand.NewSource(time.Now().UnixNano()))
   sha1Pass := fmt.Sprintf("%x", sha1.Sum([]byte(loginData.Password)))
 
-  usersC := db.C(usersCollection)
+  usersC := db.C(UsersCollection)
   users := usersC.Find(bson.M{"Username": loginData.Username,
                      "Password": sha1Pass})
   n, err := users.Count()
@@ -286,7 +292,7 @@ func Login(c *gin.Context) {
   token := fmt.Sprintf("%x", sha1.Sum([]byte(tmp)))
   expires := time.Now().AddDate(0,0,2)
 
-  sessionsC := db.C(sessionsCollection)
+  sessionsC := db.C(SessionsCollection)
   userSession := UserSession{User: loginData.Username,
                              Token: token, Expires: expires}
   err = sessionsC.Insert(userSession)

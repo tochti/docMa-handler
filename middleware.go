@@ -10,7 +10,7 @@ import (
 )
 
 const (
-  sessionsCollection = "sessions"
+  SessionsCollection = "sessions"
   tokenHeaderField = "X-XSRF-TOKEN"
 )
 
@@ -32,7 +32,7 @@ func Auth() gin.HandlerFunc {
     }
     defer session.Close()
 
-    sessionsC := session.DB(GetSettings("BEBBER_DB_NAME")).C(sessionsCollection)
+    sessionsC := session.DB(GetSettings("BEBBER_DB_NAME")).C(SessionsCollection)
     query := sessionsC.Find(bson.M{"token": token})
     n, err := query.Count()
     if err != nil {
