@@ -1,10 +1,14 @@
 package bebber
 
 import (
-  _"fmt"
+  "fmt"
+  "time"
   "bytes"
   "errors"
+  "strconv"
   "net/http"
+  "math/rand"
+  "crypto/sha1"
   "io/ioutil"
   "encoding/json"
   "github.com/gin-gonic/gin"
@@ -14,6 +18,7 @@ import (
 
 const (
   DbFileCollection = "files"
+  usersCollection = "users"
 )
 
 type ErrorResponse struct {
@@ -44,6 +49,17 @@ type LoadAccFilesResponse struct {
   Status string
   Msg string
   AccFiles []AccFile
+}
+
+type LoginData struct {
+  Username string
+  Password string
+}
+
+type UserSession struct {
+  Token string
+  User string
+  Expires time.Time
 }
 
 func LoadDir(c *gin.Context) {
@@ -233,4 +249,53 @@ func LoadAccFiles(c *gin.Context) {
          }
 
   c.JSON(http.StatusOK, res)
+}
+
+func Login(c *gin.Context) {
+  loginData := LoginData{}
+  err := ParseJsonRequest(c, &loginData)
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    return
+  }
+
+  session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    return
+  }
+  db := session.DB(GetSettings("BEBBER_DB_NAME"))
+
+  seed := rand.New(rand.NewSource(time.Now().UnixNano()))
+  sha1Pass := fmt.Sprintf("%x", sha1.Sum([]byte(loginData.Password)))
+
+  usersC := db.C(usersCollection)
+  users := usersC.Find(bson.M{"Username": loginData.Username,
+                     "Password": sha1Pass})
+  n, err := users.Count()
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    return
+  }
+  if n != 1 {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", "Wrong username or password"})
+    return
+  }
+
+  tmp := strconv.Itoa(seed.Int())
+  token := fmt.Sprintf("%x", sha1.Sum([]byte(tmp)))
+  expires := time.Now().AddDate(0,0,2)
+
+  sessionsC := db.C(sessionsCollection)
+  userSession := UserSession{User: loginData.Username,
+                             Token: token, Expires: expires}
+  err = sessionsC.Insert(userSession)
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    return
+  }
+
+  cookie := http.Cookie{Name: "X-XSRF-TOKEN", Value: token, Expires: expires}
+  http.SetCookie(c.Writer, &cookie)
+  c.JSON(http.StatusOK, SuccessResponse{Status: "success"})
 }

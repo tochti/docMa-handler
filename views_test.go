@@ -2,27 +2,20 @@ package bebber
 
 import (
   "os"
+  "fmt"
   "path"
   "time"
   "bytes"
   "strings"
   "testing"
   "io/ioutil"
-  "net/http"
-  "net/http/httptest"
+  "crypto/sha1"
   "encoding/json"
 
   "gopkg.in/mgo.v2"
   "gopkg.in/mgo.v2/bson"
   "github.com/gin-gonic/gin"
 )
-
-func PerformRequest(r http.Handler, method, path string, body *bytes.Buffer) *httptest.ResponseRecorder {
-	req, _ := http.NewRequest(method, path, body)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	return w
-}
 
 func TestLoadDirRouteOk(t *testing.T) {
   /* Config */
@@ -310,14 +303,67 @@ func TestAddTagsOk(t *testing.T) {
 
 }
 
-func TestVerifyAuth(t *testing.Test) {
+func TestUserAuthOK(t *testing.T) {
+  os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
+  os.Setenv("BEBBER_DB_NAME", "bebber_test")
+  session, err := mgo.Dial("127.0.0.1")
+  if err != nil {
+    t.Fatal(err)
+  }
+  defer session.Close()
+  sha1Pass := fmt.Sprintf("%x", sha1.Sum([]byte("test")))
 
+  user := bson.M{"Username": "loveMaster_999", "Password": sha1Pass}
+  usersC := session.DB("bebber_test").C("users")
+  usersC.Insert(user)
+  defer session.DB("bebber_test").DropDatabase()
+
+  h := gin.New()
+  h.POST("/", Login)
+  body := bytes.NewBufferString(`{"Username":"loveMaster_999","Password":"test"}`)
+  resp := PerformRequest(h, "POST", "/", body)
+
+  if resp.Code != 200 {
+    t.Fatal("Response code should be 200 was", resp.Code)
+  }
+
+  _, ok := resp.HeaderMap["Set-Cookie"]
+
+  if ok == false {
+    t.Fatal("Expect a cookie in header but was", resp.HeaderMap,"\n",resp)
+  }
+  if strings.Contains(resp.HeaderMap["Set-Cookie"][0], "X-XSRF-TOKEN") == false {
+    t.Fatal("Expect X-XSRF-TOKEN field in header but was", resp.HeaderMap["Set-Cookie"][0])
+  }
 }
 
-func TestUserAuthOK(t *testing.Test) {
+func TestUserAuthFail(t *testing.T) {
 
-}
+  os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
+  os.Setenv("BEBBER_DB_NAME", "bebber_test")
+  session, err := mgo.Dial("127.0.0.1")
+  if err != nil {
+    t.Fatal(err)
+  }
+  defer session.Close()
+  sha1Pass := fmt.Sprintf("%x", sha1.Sum([]byte("test")))
+  user := bson.M{"Username": "loveMaster_999", "Password": sha1Pass}
+  usersC := session.DB("bebber_test").C("users")
+  usersC.Insert(user)
+  defer session.DB("bebber_test").DropDatabase()
 
-func TestUserAuthFalse(t *testing.Test) {
+  h := gin.New()
+  h.POST("/", Login)
+  body := bytes.NewBufferString(`{"username":"loveMaster_999","password":"wrong"}`)
+  resp := PerformRequest(h, "POST", "/", body)
+
+  if resp.Code != 200 {
+    t.Fatal("Response code should be 200 was", resp.Code)
+  }
+
+  expectJsonResp := `{"Status":"fail","Msg":"Wrong username or password"}` + "\n"
+  if resp.Body.String() !=  expectJsonResp {
+    t.Fatal("Expect", expectJsonResp, "was", resp.Body.String())
+  }
 
 }
