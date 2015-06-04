@@ -63,9 +63,9 @@ type UserSession struct {
 }
 
 type User struct {
-  Username string
-  Password string
-  Dirs map[string]string
+  Username string `bson:username`
+  Password string `bson:password`
+  Dirs map[string]string `bson:dirs`
 }
 
 func LoadDir(c *gin.Context) {
@@ -276,8 +276,8 @@ func Login(c *gin.Context) {
   sha1Pass := fmt.Sprintf("%x", sha1.Sum([]byte(loginData.Password)))
 
   usersC := db.C(UsersCollection)
-  users := usersC.Find(bson.M{"Username": loginData.Username,
-                     "Password": sha1Pass})
+  users := usersC.Find(bson.M{"username": loginData.Username,
+                     "password": sha1Pass})
   n, err := users.Count()
   if err != nil {
     c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})

@@ -313,7 +313,7 @@ func TestUserAuthOK(t *testing.T) {
   defer session.Close()
   sha1Pass := fmt.Sprintf("%x", sha1.Sum([]byte("test")))
 
-  user := bson.M{"Username": "loveMaster_999", "Password": sha1Pass}
+  user := bson.M{"username": "loveMaster_999", "password": sha1Pass}
   usersC := session.DB("bebber_test").C("users")
   usersC.Insert(user)
   defer session.DB("bebber_test").DropDatabase()
