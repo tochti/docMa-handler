@@ -332,13 +332,12 @@ func TestUserAuthOK(t *testing.T) {
   if ok == false {
     t.Fatal("Expect a cookie in header but was", resp.HeaderMap,"\n",resp)
   }
-  if strings.Contains(resp.HeaderMap["Set-Cookie"][0], "X-XSRF-TOKEN") == false {
-    t.Fatal("Expect X-XSRF-TOKEN field in header but was", resp.HeaderMap["Set-Cookie"][0])
+  if strings.Contains(resp.HeaderMap["Set-Cookie"][0], "XSRF-TOKEN") == false {
+    t.Fatal("Expect XSRF-TOKEN field in header but was", resp.HeaderMap["Set-Cookie"][0])
   }
 }
 
 func TestUserAuthFail(t *testing.T) {
-
   os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
   os.Setenv("BEBBER_DB_NAME", "bebber_test")
   session, err := mgo.Dial("127.0.0.1")
@@ -364,6 +363,35 @@ func TestUserAuthFail(t *testing.T) {
   expectJsonResp := `{"Status":"fail","Msg":"Wrong username or password"}` + "\n"
   if resp.Body.String() !=  expectJsonResp {
     t.Fatal("Expect", expectJsonResp, "was", resp.Body.String())
+  }
+
+}
+
+func TestGetUser(t *testing.T) {
+  os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
+  os.Setenv("BEBBER_DB_NAME", "bebber_test")
+  session, err := mgo.Dial("127.0.0.1")
+  if err != nil {
+    t.Fatal(err)
+  }
+  defer session.Close()
+  sha1Pass := fmt.Sprintf("%x", sha1.Sum([]byte("test")))
+  dirs := map[string]string{"inbox": "/to/dir"}
+  user := User{Username: "hitman", Password: sha1Pass, Dirs:dirs}
+  user1 := User{Username: "catwomen", Password: sha1Pass, Dirs:dirs}
+  user2 := User{Username: "loveMaster_999", Password: sha1Pass, Dirs:dirs}
+  usersC := session.DB("bebber_test").C("users")
+  usersC.Insert(user, user1, user2)
+  defer session.DB("bebber_test").DropDatabase()
+
+  r := gin.New()
+  r.GET("/:name", GetUser)
+  body := bytes.NewBufferString("")
+  resp := PerformRequest(r, "GET", "/hitman", body)
+
+  expect := `{"Username":"hitman","Password":"","Dirs":{"inbox":"/to/dir"}}`+"\n"
+  if resp.Body.String() != expect {
+    t.Fatal("Expect", expect, "was", resp.Body.String())
   }
 
 }

@@ -19,6 +19,7 @@ import (
 const (
   DbFileCollection = "files"
   UsersCollection = "users"
+  XSRFCookieName = "XSRF-TOKEN"
 )
 
 type ErrorResponse struct {
@@ -301,7 +302,34 @@ func Login(c *gin.Context) {
     return
   }
 
-  cookie := http.Cookie{Name: "X-XSRF-TOKEN", Value: token, Expires: expires}
+  cookie := http.Cookie{Name: XSRFCookieName, Value: token, Expires: expires}
   http.SetCookie(c.Writer, &cookie)
   c.JSON(http.StatusOK, SuccessResponse{Status: "success"})
+}
+
+func GetUser(c *gin.Context) {
+  username := c.Params.ByName("name")
+  session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    return
+  }
+  usersC := session.DB(GetSettings("BEBBER_DB_NAME")).C(UsersCollection)
+  users := usersC.Find(bson.M{"username": username})
+  n, err := users.Count()
+  if n != 1 {
+    //TODO: Info an Admin das es user mit dem selben Username mehrmals gibt
+    c.JSON(http.StatusOK, ErrorResponse{"fail", "Cannot find user"})
+    return
+  }
+
+  user := User{}
+  err = users.One(&user)
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    return
+  }
+
+  user.Password = ""
+  c.JSON(http.StatusOK, user)
 }
