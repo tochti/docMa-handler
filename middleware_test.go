@@ -25,7 +25,7 @@ func TestVerifyAuthOK(t *testing.T) {
   defer session.DB("bebber_test").DropDatabase()
 
   h := gin.New()
-  h.GET("/", func(c *gin.Context){c.JSON(http.StatusOK, gin.H{"some":"thing"})}, Auth())
+  h.GET("/", Auth(), func(c *gin.Context){c.JSON(http.StatusOK, gin.H{"some":"thing"})})
   header := http.Header{}
   header.Add("X-XSRF-TOKEN", "123")
   body := bytes.NewBufferString("")
