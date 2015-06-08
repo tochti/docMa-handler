@@ -59,6 +59,7 @@ func Auth() gin.HandlerFunc {
       c.Abort()
       return
     } else {
+      c.Set("session", userSession)
       c.Next()
     }
 
