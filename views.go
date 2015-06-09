@@ -1,8 +1,10 @@
 package bebber
 
 import (
+  "os"
   "fmt"
   "time"
+  "path"
   "bytes"
   "errors"
   "strconv"
@@ -50,6 +52,12 @@ type LoadAccFilesResponse struct {
   Status string
   Msg string
   AccFiles []AccFile
+}
+
+type MoveFileRequest struct {
+  FromBox string
+  ToBox string
+  File string
 }
 
 type LoginData struct {
@@ -332,4 +340,45 @@ func GetUser(c *gin.Context) {
 
   user.Password = ""
   c.JSON(http.StatusOK, user)
+}
+
+func MoveFile(c *gin.Context) {
+  moveFileRequest := MoveFileRequest{}
+  err := ParseJsonRequest(c, &moveFileRequest)
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    return
+  }
+
+  tmp, err := c.Get("session")
+  userSession := tmp.(UserSession)
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    return
+  }
+
+  session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+  }
+
+  usersC := session.DB(GetSettings("BEBBER_DB_NAME")).C(UsersCollection)
+
+  user := User{}
+  err = user.Load(userSession.User, usersC)
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    return
+  }
+
+  from := path.Join(user.Dirs[moveFileRequest.FromBox], moveFileRequest.File)
+  to := path.Join(user.Dirs[moveFileRequest.ToBox], moveFileRequest.File)
+  err = os.Rename(from, to)
+
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    return
+  }
+
+  c.JSON(http.StatusOK, SuccessResponse{Status: "success"})
 }

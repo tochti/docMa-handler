@@ -8,6 +8,7 @@ import (
   "bytes"
   "strings"
   "testing"
+  "net/http"
   "io/ioutil"
   "crypto/sha1"
   "encoding/json"
@@ -392,6 +393,74 @@ func TestGetUser(t *testing.T) {
   expect := `{"Username":"hitman","Password":"","Dirs":{"inbox":"/to/dir"}}`+"\n"
   if resp.Body.String() != expect {
     t.Fatal("Expect", expect, "was", resp.Body.String())
+  }
+
+}
+
+func TestMoveFileOk(t *testing.T) {
+  /* setup Test */
+  fromBox, err := ioutil.TempDir(testDir, "box")
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  defer os.RemoveAll(fromBox)
+
+  toBox, err := ioutil.TempDir(testDir, "box")
+  if err != nil  {
+    t.Fatal(err.Error())
+  }
+  defer os.RemoveAll(toBox)
+
+  moveFile, err := ioutil.TempFile(fromBox, "moveme")
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  moveFile.Close()
+
+  session, err := mgo.Dial("127.0.0.1")
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  defer session.Close()
+  defer session.DB("bebber_test").DropDatabase()
+
+  sessionsC := session.DB("bebber_test").C(SessionsCollection)
+  expires := time.Now().AddDate(0,0,1)
+  userSession := UserSession{Token: "123", User: "kloß", Expires: expires}
+  err = sessionsC.Insert(userSession)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  usersC := session.DB("bebber_test").C(UsersCollection)
+  dirs := map[string]string{"from":fromBox,"to":toBox}
+  user := User{Username:"kloß",Password:"",Dirs:dirs}
+  err = usersC.Insert(user)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  /* Perform Request */
+  serv := gin.New()
+  serv.POST("/", Auth(), MoveFile)
+  bodyStr := `{"FromBox":"from","ToBox":"to","File":"`+path.Base(moveFile.Name())+`"}`
+  body := bytes.NewBufferString(bodyStr)
+  header := http.Header{}
+  header.Add("X-XSRF-TOKEN", "123")
+  resp := PerformRequestHeader(serv, "POST", "/", body, &header)
+
+  if resp.Code != 200 {
+    t.Fatal("Expect 200 was", resp.Code)
+  }
+
+  err = moveFile.Sync()
+  if os.IsExist(err) == true {
+    t.Fatal(moveFile.Name, " should be moved", resp.Body.String())
+  }
+
+  _, err = os.Open(path.Join(toBox, path.Base(moveFile.Name())))
+  if err != nil {
+    t.Fatal(err.Error(), resp.Body.String())
   }
 
 }
