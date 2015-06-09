@@ -507,3 +507,28 @@ func TestEmptyAccData(t *testing.T) {
     t.Fatal("Expect false was true")
   }
 }
+
+func TestLoadUser(t *testing.T) {
+  session, err := mgo.Dial("127.0.0.1")
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  userTmp := User{Username: "XXX", Password: "", Dirs: map[string]string{"i":"ih"}}
+  userExpect := User{Username: "Haschel", Password: "", Dirs: map[string]string{"i":"ah"}}
+  col := session.DB("bebber_test").C(UsersCollection)
+
+  err = col.Insert(userExpect, userTmp)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  user := User{}
+  err = user.load("Haschel", col)
+
+  if (userExpect.Username != user.Username) && (err == nil) {
+    t.Fatal("Expect,", userExpect, "was,", user)
+  }
+
+
+}

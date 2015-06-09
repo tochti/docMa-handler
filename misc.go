@@ -614,3 +614,20 @@ func DateToString(t time.Time) (string) {
   date := fmt.Sprintf("%02d.%02d.%d", d, int(m), y)
   return date
 }
+
+func (user User) load(username string, collection *mgo.Collection) error {
+  query := collection.Find(bson.M{"username": username})
+
+  if n, err := query.Count(); (err != nil) || (n != 1) {
+    errMsg := fmt.Sprintf("Cannot find user %v - %v", username, err.Error())
+    err = errors.New(errMsg)
+    return err
+  }
+
+  err := query.One(user)
+  if err != nil {
+    return err
+  }
+  return nil
+
+}
