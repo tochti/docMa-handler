@@ -543,7 +543,7 @@ func TestLoadUserFail(t *testing.T) {
   user := User{}
   err = user.Load("Haschel", col)
 
-  if err != nil {
+  if err == nil {
     t.Fatal("Expect Cannot found user Haschel error was nil")
   }
 
