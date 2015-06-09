@@ -513,10 +513,13 @@ func TestLoadUserOk(t *testing.T) {
   if err != nil {
     t.Fatal(err.Error())
   }
+  defer session.Close()
 
   userTmp := User{Username: "XXX", Password: "", Dirs: map[string]string{"i":"ih"}}
   userExpect := User{Username: "Haschel", Password: "", Dirs: map[string]string{"i":"ah"}}
-  col := session.DB("bebber_test").C(UsersCollection)
+  db := session.DB("bebber_test")
+  col := db.C(UsersCollection)
+  defer db.DropDatabase()
 
   err = col.Insert(userExpect, userTmp)
   if err != nil {
@@ -539,12 +542,11 @@ func TestLoadUserFail(t *testing.T) {
   }
   defer session.Close()
   col := session.DB("bebber_test").C(UsersCollection)
-
   user := User{}
   err = user.Load("Haschel", col)
 
-  if err == nil {
-    t.Fatal("Expect Cannot found user Haschel error was nil")
+  if err.Error() != "Cannot find user Haschel" {
+    t.Fatal("Expect 'Cannot found user Haschel' error was", err.Error())
   }
 
 }
