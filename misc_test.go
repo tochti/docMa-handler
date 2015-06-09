@@ -508,7 +508,7 @@ func TestEmptyAccData(t *testing.T) {
   }
 }
 
-func TestLoadUser(t *testing.T) {
+func TestLoadUserOk(t *testing.T) {
   session, err := mgo.Dial("127.0.0.1")
   if err != nil {
     t.Fatal(err.Error())
@@ -524,11 +524,27 @@ func TestLoadUser(t *testing.T) {
   }
 
   user := User{}
-  err = user.load("Haschel", col)
+  err = user.Load("Haschel", col)
 
   if (userExpect.Username != user.Username) && (err == nil) {
     t.Fatal("Expect,", userExpect, "was,", user)
   }
 
+}
+
+func TestLoadUserFail(t *testing.T) {
+  session, err := mgo.Dial("127.0.0.1")
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  defer session.Close()
+  col := session.DB("bebber_test").C(UsersCollection)
+
+  user := User{}
+  err = user.Load("Haschel", col)
+
+  if err != nil {
+    t.Fatal("Expect Cannot found user Haschel error was nil")
+  }
 
 }

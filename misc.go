@@ -615,7 +615,7 @@ func DateToString(t time.Time) (string) {
   return date
 }
 
-func (user User) load(username string, collection *mgo.Collection) error {
+func (user User) Load(username string, collection *mgo.Collection) error {
   query := collection.Find(bson.M{"username": username})
 
   if n, err := query.Count(); (err != nil) || (n != 1) {
