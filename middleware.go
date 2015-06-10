@@ -11,13 +11,13 @@ import (
 
 const (
   SessionsCollection = "sessions"
-  tokenHeaderField = "X-XSRF-TOKEN"
+  TokenHeaderField = "X-XSRF-TOKEN"
 )
 
 func Auth() gin.HandlerFunc {
   return func(c *gin.Context) {
 
-    token := c.Request.Header.Get(tokenHeaderField)
+    token := c.Request.Header.Get(TokenHeaderField)
     if token == "" {
       c.JSON(http.StatusUnauthorized, ErrorResponse{"fail", "Header not found"})
       c.Abort()
