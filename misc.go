@@ -9,7 +9,7 @@ import (
   "errors"
   "strconv"
   "strings"
-  _"regexp"
+  "crypto/sha1"
   "encoding/csv"
   "encoding/json"
 
@@ -633,6 +633,18 @@ func (user *User) Load(username string, collection *mgo.Collection) error {
     return err
   }
   *user = u
+  return nil
+
+}
+
+func (user *User) Save(col *mgo.Collection) error {
+  u := *user
+  u.Password = fmt.Sprintf("%x", sha1.Sum([]byte("tt")))
+  err := col.Insert(u)
+  if err != nil {
+    return err
+  }
+
   return nil
 
 }

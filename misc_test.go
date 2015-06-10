@@ -6,8 +6,10 @@ import (
   "path"
   "time"
   "testing"
+  "crypto/sha1"
 
   "gopkg.in/mgo.v2"
+  "gopkg.in/mgo.v2/bson"
 )
 
 
@@ -547,6 +549,36 @@ func TestLoadUserFail(t *testing.T) {
 
   if err.Error() != "Cannot find user Haschel" {
     t.Fatal("Expect 'Cannot found user Haschel' error was", err.Error())
+  }
+
+}
+
+func TestSaveUserOk(t *testing.T) {
+  session, err := mgo.Dial("127.0.0.1")
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  defer session.Close()
+
+  sha1Pass := fmt.Sprintf("%x", sha1.Sum([]byte("tt")))
+  col := session.DB("bebber_test").C(UsersCollection)
+  userExpect := User{Username: "test",
+            Password: "tt",
+            Dirs: map[string]string{"box":"/box"}}
+  err = userExpect.Save(col)
+
+  user := User{}
+  err = col.Find(bson.M{"username": "test"}).One(&user)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if (userExpect.Username != user.Username) && (err == nil) {
+    t.Fatal("Expect", userExpect, "was", user)
+  }
+
+  if (sha1Pass != user.Password) {
+    t.Fatal("Expect", sha1Pass, "was", user.Password)
   }
 
 }
