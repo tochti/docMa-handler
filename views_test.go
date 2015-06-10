@@ -18,7 +18,7 @@ import (
   "github.com/gin-gonic/gin"
 )
 
-func TestLoadDirRouteOk(t *testing.T) {
+func TestLoadBoxRouteOk(t *testing.T) {
   /* Config */
   os.Setenv("BEBBER_DB_NAME", "bebber_test")
   os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
@@ -38,6 +38,9 @@ func TestLoadDirRouteOk(t *testing.T) {
   if err != nil {
     t.Error(err)
   }
+  defer session.Close()
+  db := session.DB("bebber_test")
+  defer db.DropDatabase()
 
   sT := time.Date(2014, time.April, 1, 0, 0, 0, 0, time.UTC)
   eT := time.Date(2014, time.April, 2, 0, 0, 0, 0, time.UTC)
@@ -60,17 +63,31 @@ func TestLoadDirRouteOk(t *testing.T) {
     []ValueTag{},
   }
 
-  c := session.DB("bebber_test").C("files")
+  c := db.C(FilesCollection)
   err = c.Insert(doc1, doc2, doc3)
   if err != nil {
     t.Error(err)
   }
 
+  CreateTestUserSession("bommel", "123", db, t)
+
+  user := User{Username:"bommel",
+              Password:"",
+              Dirs: map[string]string{"testbox": tmpDir}}
+  err = user.Save(db.C(UsersCollection))
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
   /* Perform Request */
-	r := gin.New()
-  r.POST("/", LoadDir)
-  b := bytes.NewBufferString("{\"dir\": \""+ tmpDir +"\"}")
-  w := PerformRequest(r, "POST", "/", b)
+	handler := gin.New()
+  handler.GET("/:boxname", Auth(), LoadBox)
+  req := TestRequest{
+    Handler: handler,
+    Body: "",
+    Header: http.Header{},
+  }
+  w := req.DialToken("GET", "/testbox", "123")
 
   /* Test */
   rDoc := `{"Status":"success",`

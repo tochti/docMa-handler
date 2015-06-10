@@ -1,10 +1,14 @@
 package bebber
 
 import (
+  "time"
   "bytes"
+  "testing"
   "net/http"
   "net/http/httptest"
   "path/filepath"
+
+  "gopkg.in/mgo.v2"
 )
 
 var testDir, err = filepath.Abs("./testdata")
@@ -24,3 +28,31 @@ func PerformRequestHeader(r http.Handler, method, path string, body *bytes.Buffe
 	return w
 }
 
+type TestRequest struct {
+  Body string
+  Handler http.Handler
+  Header http.Header
+}
+
+func (t *TestRequest) DialToken(method, path, token string) *httptest.ResponseRecorder {
+  reqData := *t
+  body := bytes.NewBufferString(reqData.Body)
+  reqData.Header.Add("X-XSRF-TOKEN", token)
+
+	req, _ := http.NewRequest(method, path, body)
+  req.Header = reqData.Header
+	w := httptest.NewRecorder()
+	reqData.Handler.ServeHTTP(w, req)
+  *t = reqData
+	return w
+}
+
+func CreateTestUserSession(user, token string, db *mgo.Database, t *testing.T) {
+  sessionsC := db.C(SessionsCollection)
+  expires := time.Now().AddDate(0,0,1)
+  userSession := UserSession{Token: token, User: user, Expires: expires}
+  err = sessionsC.Insert(userSession)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+}

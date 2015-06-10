@@ -5,21 +5,20 @@ import (
   "fmt"
   "time"
   "path"
-  "bytes"
   "errors"
   "strconv"
   "net/http"
   "math/rand"
   "crypto/sha1"
   "io/ioutil"
-  "encoding/json"
-  "github.com/gin-gonic/gin"
+
   "gopkg.in/mgo.v2"
   "gopkg.in/mgo.v2/bson"
+  "github.com/gin-gonic/gin"
 )
 
 const (
-  DbFileCollection = "files"
+  FilesCollection = "files"
   UsersCollection = "users"
   XSRFCookieName = "XSRF-TOKEN"
 )
@@ -32,10 +31,6 @@ type ErrorResponse struct {
 type SuccessResponse struct {
   Status string
   Msg string
-}
-
-type LoadDirRequest struct {
-  Dir string
 }
 
 type LoadDirResponse struct {
@@ -77,7 +72,16 @@ type User struct {
   Dirs map[string]string `bson:dirs`
 }
 
-func LoadDir(c *gin.Context) {
+func LoadBox(c *gin.Context) {
+  boxName := c.Params.ByName("boxname")
+
+  tmpS, err := c.Get("session")
+  userSession := tmpS.(UserSession)
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    return
+  }
+
   session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
   if err != nil {
     errMsg := "Db error - "+ err.Error()
@@ -85,26 +89,29 @@ func LoadDir(c *gin.Context) {
     return
   }
   defer session.Close()
+  db := session.DB(GetSettings("BEBBER_DB_NAME"))
 
-  collection := session.DB(GetSettings("BEBBER_DB_NAME")).C(DbFileCollection)
+  filesC := db.C(FilesCollection)
 
-
-  buf := new(bytes.Buffer)
-  buf.ReadFrom(c.Request.Body)
-
-
-  var dir LoadDirRequest
-  err = json.Unmarshal(buf.Bytes(), &dir)
+  user := User{}
+  err = user.Load(userSession.User, db.C(UsersCollection)) 
   if err != nil {
-    errMsg := "Parsing error - "+ err.Error()
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    return
+  }
+
+  var boxPath string
+  if v, ok := user.Dirs[boxName]; ok == true {
+    boxPath = v
+  } else {
+    errMsg := "Cannot find box "+ boxName
     c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
     return
   }
 
-  files, err := ioutil.ReadDir(dir.Dir)
+  files, err := ioutil.ReadDir(boxPath)
   if err != nil {
-    errMsg := "Dir error - "+ err.Error()
-    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
     return
   }
   incFiles := []string{}
@@ -119,7 +126,7 @@ func LoadDir(c *gin.Context) {
   }
 
   var result []FileDoc
-  iter := collection.Find(filter).Iter()
+  iter := filesC.Find(filter).Iter()
   err = iter.All(&result)
   if err != nil {
     errMsg := "Db Error - "+ err.Error()
@@ -167,7 +174,7 @@ func AddTags(c *gin.Context) {
   }
 
   session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
-  collection := session.DB(GetSettings("BEBBER_DB_NAME")).C(DbFileCollection)
+  collection := session.DB(GetSettings("BEBBER_DB_NAME")).C(FilesCollection)
 
   updateDoc := FileDoc{Filename: jsonReq.Filename}
   err = collection.Find(bson.M{"filename": jsonReq.Filename}).One(&updateDoc)
@@ -238,7 +245,7 @@ func LoadAccFiles(c *gin.Context) {
   }
   defer session.Close()
 
-  collection := session.DB(GetSettings("BEBBER_DB_NAME")).C(DbFileCollection)
+  collection := session.DB(GetSettings("BEBBER_DB_NAME")).C(FilesCollection)
 
   accData := []AccData{}
   err = ReadAccFile(GetSettings("BEBBER_ACC_FILE"), &accData)
