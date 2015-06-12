@@ -19,9 +19,13 @@ func Auth() gin.HandlerFunc {
 
     token := c.Request.Header.Get(TokenHeaderField)
     if token == "" {
-      c.JSON(http.StatusUnauthorized, ErrorResponse{"fail", "Header not found"})
-      c.Abort()
-      return
+      cookie, _ := c.Request.Cookie(XSRFCookieName)
+      token = cookie.Value
+      if token == "" {
+        c.JSON(http.StatusUnauthorized, ErrorResponse{"fail", "Header not found"})
+        c.Abort()
+        return
+      }
     }
 
     session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
