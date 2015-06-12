@@ -22,12 +22,10 @@ func TestLoadBoxRouteOk(t *testing.T) {
   /* Config */
   os.Setenv("BEBBER_DB_NAME", "bebber_test")
   os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
-  os.Setenv("BEBBER_FILES", testDir)
 
   m := int(0777)
   mode := os.FileMode(m)
   tmpDir, err := ioutil.TempDir(testDir, "loaddir")
-  tmpDirBase := path.Base(tmpDir)
   if err != nil {
     t.Error(err)
   }
@@ -75,7 +73,7 @@ func TestLoadBoxRouteOk(t *testing.T) {
 
   user := User{Username:"bommel",
               Password:"",
-              Dirs: map[string]string{"testbox": tmpDirBase}}
+              Dirs: map[string]string{"testbox": tmpDir}}
   err = user.Save(db.C(UsersCollection))
   if err != nil {
     t.Fatal(err.Error())
