@@ -94,7 +94,7 @@ func LoadBox(c *gin.Context) {
   filesC := db.C(FilesCollection)
 
   user := User{}
-  err = user.Load(userSession.User, db.C(UsersCollection)) 
+  err = user.Load(userSession.User, db.C(UsersCollection))
   if err != nil {
     c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
     return
@@ -102,7 +102,7 @@ func LoadBox(c *gin.Context) {
 
   var boxPath string
   if v, ok := user.Dirs[boxName]; ok == true {
-    boxPath = v
+    boxPath = path.Join(GetSettings("BEBBER_FILES"), v)
   } else {
     errMsg := "Cannot find box "+ boxName
     c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
