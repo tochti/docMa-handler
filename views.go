@@ -6,6 +6,7 @@ import (
   "time"
   "path"
   "errors"
+  "strings"
   "strconv"
   "net/http"
   "math/rand"
@@ -155,6 +156,34 @@ func LoadBox(c *gin.Context) {
 
   c.JSON(http.StatusOK, res)
 
+}
+
+func LoadFile(c *gin.Context) {
+  filename := strings.Trim(c.Params.ByName("filename"), "\"")
+  boxname := c.Params.ByName("boxname")
+
+  session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+  }
+  defer session.Close()
+  db := session.DB(GetSettings("BEBBER_DB_NAME"))
+
+  usTmp, err := c.Get("session")
+  userSession := usTmp.(UserSession)
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    return
+  }
+  user := User{}
+  err = user.Load(userSession.User, db.C(UsersCollection))
+  if err != nil {
+    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+  }
+
+  boxpath := user.Dirs[boxname]
+  filepath := path.Join(boxpath, filename)
+  c.File(filepath)
 }
 
 func AddTags(c *gin.Context) {

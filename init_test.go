@@ -1,6 +1,7 @@
 package bebber
 
 import (
+  "os"
   "time"
   "bytes"
   "testing"
@@ -55,4 +56,9 @@ func CreateTestUserSession(user, token string, db *mgo.Database, t *testing.T) {
   if err != nil {
     t.Fatal(err.Error())
   }
+}
+
+func SetupEnvs(t *testing.T) {
+  os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
+  os.Setenv("BEBBER_DB_NAME", "bebber_test")
 }

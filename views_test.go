@@ -481,3 +481,57 @@ func TestMoveFileOk(t *testing.T) {
   }
 
 }
+
+func TestLoadFiles(t *testing.T) {
+  SetupEnvs(t)
+
+  tmpDir, err := ioutil.TempDir(testDir, "box")
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  defer os.RemoveAll(tmpDir)
+
+  m := int(0777)
+  mode := os.FileMode(m)
+  ioutil.WriteFile(path.Join(tmpDir, "test file.pdf"), []byte("test"), mode)
+
+  session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  db := session.DB(GetSettings("BEBBER_DB_NAME"))
+  defer session.Close()
+  defer db.DropDatabase()
+
+ CreateTestUserSession("ladykiller1980", "123", db, t)
+
+  usersC := db.C(UsersCollection)
+  user := User{
+          Username: "ladykiller1980",
+          Password: "",
+          Dirs: map[string]string{"inbox": tmpDir},
+        }
+  err = user.Save(usersC)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  handler := gin.New()
+  handler.GET("/:boxname/:filename", Auth(), LoadFile)
+  testRequest := TestRequest{
+                    Body: "",
+                    Header: http.Header{},
+                    Handler: handler,
+                  }
+  resp := testRequest.DialToken("GET", "/inbox/\"test file.pdf\"", "123")
+
+  if resp.Code != 200 {
+    t.Fatal("Expect 200 was", resp.Code)
+  }
+
+  if resp.Body.String() != "test" {
+    t.Fatal("Expect test was", resp.Body.String())
+  }
+
+
+}
