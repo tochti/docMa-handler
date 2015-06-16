@@ -53,7 +53,7 @@ func (t *TestRequest) SendWithToken(method, path, token string) *httptest.Respon
 	return w
 }
 
-func CreateTestUserSession(user, token string, db *mgo.Database, t *testing.T) {
+func MakeTestUserSession(user, token string, db *mgo.Database, t *testing.T) {
   sessionsC := db.C(SessionsCollection)
   expires := time.Now().AddDate(0,0,1)
   userSession := UserSession{Token: token, User: user, Expires: expires}

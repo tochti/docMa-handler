@@ -69,7 +69,7 @@ func TestLoadBoxRouteOk(t *testing.T) {
     t.Error(err)
   }
 
-  CreateTestUserSession("bommel", "123", db, t)
+  MakeTestUserSession("bommel", "123", db, t)
 
   user := User{Username:"bommel",
               Password:"",
@@ -507,7 +507,7 @@ func TestLoadFiles(t *testing.T) {
   defer session.Close()
   defer db.DropDatabase()
 
- CreateTestUserSession("ladykiller1980", "123", db, t)
+  MakeTestUserSession("ladykiller1980", "123", db, t)
 
   usersC := db.C(UsersCollection)
   user := User{
