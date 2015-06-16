@@ -87,7 +87,7 @@ func TestLoadBoxRouteOk(t *testing.T) {
     Body: "",
     Header: http.Header{},
   }
-  w := req.DialToken("GET", "/testbox", "123")
+  w := req.SendWithToken("GET", "/testbox", "123")
 
   /* Test */
   rDoc := `{"Status":"success",`
@@ -523,7 +523,7 @@ func TestLoadFiles(t *testing.T) {
                     Header: http.Header{},
                     Handler: handler,
                   }
-  resp := testRequest.DialToken("GET", "/inbox/\"test file.pdf\"", "123")
+  resp := testRequest.SendWithToken("GET", "/inbox/\"test file.pdf\"", "123")
 
   if resp.Code != 200 {
     t.Fatal("Expect 200 was", resp.Code)
@@ -533,5 +533,44 @@ func TestLoadFiles(t *testing.T) {
     t.Fatal("Expect test was", resp.Body.String())
   }
 
+}
+
+func TestHandler_SearchHandler_OK(t *testing.T) {
+  dialInfo := &mgo.DialInfo{
+                Addrs: []string{TestDBServer},
+              }
+  session, err := mgo.DialWithInfo(dialInfo)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  conn := MongoDBConn{
+    DialInfo: dialInfo,
+    Session: session,
+    DBName: TestDBName,
+  }
+  globals := Globals{MongoDB: conn}
+
+  doc := bson.M{"Blue": "House"}
+  testColl := db.C(FilesCollection)
+  testColl.Insert(doc)
+
+  handler := gin.New()
+  handler.POST("/", MakeGlobalsHandler(SearchHandler, globals))
+  request := TestRequest{
+    Body: `{"Blue": "House"}`,
+    Header: http.Header{},
+    Handler: handler,
+  }
+  response := request.SendWithToken("POST", "/", "123")
+
+  expect := `[{"Blue": "House"}]`
+  if strings.Contains(response.Body.String(), expect) {
+    t.Fatal("Expect", expect, "was", response.Body.String())
+  }
 
 }

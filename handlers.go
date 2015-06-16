@@ -5,6 +5,7 @@ import (
   "fmt"
   "time"
   "path"
+  "bytes"
   "errors"
   "strings"
   "strconv"
@@ -417,4 +418,15 @@ func MoveFile(c *gin.Context) {
   }
 
   c.JSON(http.StatusOK, SuccessResponse{Status: "success"})
+}
+
+func SearchHandler(c *gin.Context, g Globals) {
+  session := g.MongoDB.Session.Copy()
+  db := session.DB(g.MongoDB.DBName)
+
+  buf := new(bytes.Buffer)
+  buf.ReadFrom(c.Request.Body)
+  body := buf.String()
+  result := Search(body, db)
+  c.JSON(http.StatusOK, result)
 }
