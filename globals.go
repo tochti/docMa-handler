@@ -8,14 +8,14 @@ import (
 // Struct to store obj which are interesting for many Handler Functions
 type Globals struct {
   Config Config
-  DB MongoDBConn
+  MongoDB MongoDBConn
 }
 
 type Config map[string]string
 
 type MongoDBConn struct {
-  Session mgo.Session
-  DialInfo mgo.DialInfo
+  Session *mgo.Session
+  DialInfo *mgo.DialInfo
   DBName string
 }
 
