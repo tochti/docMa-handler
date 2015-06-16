@@ -40,7 +40,7 @@ type TestRequest struct {
   Header http.Header
 }
 
-func (t *TestRequest) DialToken(method, path, token string) *httptest.ResponseRecorder {
+func (t *TestRequest) SendWithToken(method, path, token string) *httptest.ResponseRecorder {
   reqData := *t
   body := bytes.NewBufferString(reqData.Body)
   reqData.Header.Add("X-XSRF-TOKEN", token)
