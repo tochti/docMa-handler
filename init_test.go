@@ -12,6 +12,11 @@ import (
   "gopkg.in/mgo.v2"
 )
 
+const (
+  TestDBServer = "127.0.0.1"
+  TestDBName = "bebber_test"
+)
+
 var testDir, err = filepath.Abs("./testdata")
 
 func PerformRequest(r http.Handler, method, path string, body *bytes.Buffer) *httptest.ResponseRecorder {
@@ -60,5 +65,5 @@ func CreateTestUserSession(user, token string, db *mgo.Database, t *testing.T) {
 
 func SetupEnvs(t *testing.T) {
   os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
-  os.Setenv("BEBBER_DB_NAME", "bebber_test")
+  os.Setenv("BEBBER_DB_NAME", TestDBName)
 }
