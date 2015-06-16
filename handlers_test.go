@@ -81,7 +81,9 @@ func TestLoadBoxRouteOk(t *testing.T) {
 
   /* Perform Request */
 	handler := gin.New()
-  handler.GET("/:boxname", Auth(), LoadBox)
+  globals := MakeTestGlobals(t)
+  auth := MakeGlobalsHandler(Auth, globals)
+  handler.GET("/:boxname", auth, LoadBox)
   req := TestRequest{
     Handler: handler,
     Body: "",
@@ -459,7 +461,9 @@ func TestMoveFileOk(t *testing.T) {
 
   /* Perform Request */
   serv := gin.New()
-  serv.POST("/", Auth(), MoveFile)
+  globals := MakeTestGlobals(t)
+  auth := MakeGlobalsHandler(Auth, globals)
+  serv.POST("/", auth, MoveFile)
   bodyStr := `{"FromBox":"from","ToBox":"to","File":"`+path.Base(moveFile.Name())+`"}`
   body := bytes.NewBufferString(bodyStr)
   header := http.Header{}
@@ -516,8 +520,10 @@ func TestLoadFiles(t *testing.T) {
     t.Fatal(err.Error())
   }
 
+  globals := MakeTestGlobals(t)
   handler := gin.New()
-  handler.GET("/:boxname/:filename", Auth(), LoadFile)
+  auth := MakeGlobalsHandler(Auth, globals)
+  handler.GET("/:boxname/:filename", auth, LoadFile)
   testRequest := TestRequest{
                     Body: "",
                     Header: http.Header{},

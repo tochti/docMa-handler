@@ -5,7 +5,6 @@ import (
   "time"
   "net/http"
   "github.com/gin-gonic/gin"
-  "gopkg.in/mgo.v2"
   "gopkg.in/mgo.v2/bson"
 )
 
@@ -14,8 +13,7 @@ const (
   TokenHeaderField = "X-XSRF-TOKEN"
 )
 
-func Auth() gin.HandlerFunc {
-  return func(c *gin.Context) {
+func Auth(c *gin.Context, g Globals) {
 
     token := c.Request.Header.Get(TokenHeaderField)
     if token == "" {
@@ -28,7 +26,7 @@ func Auth() gin.HandlerFunc {
       }
     }
 
-    session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
+    session := g.MongoDB.Session.Copy()
     if err != nil {
       c.JSON(http.StatusUnauthorized, ErrorResponse{"fail", err.Error()})
       c.Abort()
@@ -36,8 +34,8 @@ func Auth() gin.HandlerFunc {
     }
     defer session.Close()
 
-    sessionsC := session.DB(GetSettings("BEBBER_DB_NAME")).C(SessionsCollection)
-    query := sessionsC.Find(bson.M{"token": token})
+    sessionsColl := session.DB(g.MongoDB.DBName).C(SessionsCollection)
+    query := sessionsColl.Find(bson.M{"token": token})
     n, err := query.Count()
     if err != nil {
       c.JSON(http.StatusUnauthorized, ErrorResponse{"fail", err.Error()})
@@ -66,7 +64,5 @@ func Auth() gin.HandlerFunc {
       c.Set("session", userSession)
       c.Next()
     }
-
-  }
 
 }

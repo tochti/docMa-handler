@@ -67,3 +67,28 @@ func SetupEnvs(t *testing.T) {
   os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
   os.Setenv("BEBBER_DB_NAME", TestDBName)
 }
+
+func MakeTestGlobals(t *testing.T) Globals{
+  dialInfo := &mgo.DialInfo{
+                Addrs: []string{TestDBServer},
+              }
+  session, err := mgo.DialWithInfo(dialInfo)
+  if err != nil {
+    t.Fatal(err)
+  }
+
+  conn := MongoDBConn{
+    DialInfo: dialInfo,
+    Session: session,
+    DBName: TestDBName,
+  }
+
+  return Globals{
+                  MongoDB: conn,
+                  Config: Config{
+                            "DBName": TestDBName,
+                            "DBServer": TestDBServer,
+                        },
+                  }
+
+}
