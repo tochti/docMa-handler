@@ -27,11 +27,6 @@ func Auth(c *gin.Context, g Globals) {
     }
 
     session := g.MongoDB.Session.Copy()
-    if err != nil {
-      c.JSON(http.StatusUnauthorized, ErrorResponse{"fail", err.Error()})
-      c.Abort()
-      return
-    }
     defer session.Close()
 
     sessionsColl := session.DB(g.MongoDB.DBName).C(SessionsCollection)

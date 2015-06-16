@@ -352,16 +352,21 @@ func Login(c *gin.Context) {
   c.JSON(http.StatusOK, SuccessResponse{Status: "success"})
 }
 
-func GetUser(c *gin.Context) {
+func UserHandler(c *gin.Context, globals Globals) {
+  config := globals.Config
+
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(config["MONGODB_DBNAME"])
   username := c.Params.ByName("name")
-  session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
+  usersColl := db.C(UsersCollection)
+  users := usersColl.Find(bson.M{"username": username})
+  n, err := users.Count()
   if err != nil {
     c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
     return
   }
-  usersC := session.DB(GetSettings("BEBBER_DB_NAME")).C(UsersCollection)
-  users := usersC.Find(bson.M{"username": username})
-  n, err := users.Count()
   if n != 1 {
     //TODO: Info an Admin das es user mit dem selben Username mehrmals gibt
     c.JSON(http.StatusOK, ErrorResponse{"fail", "Cannot find user"})

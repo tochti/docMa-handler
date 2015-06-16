@@ -13,7 +13,7 @@ import (
 )
 
 const (
-  TestDBServer = "127.0.0.1"
+  TestDBHost = "127.0.0.1"
   TestDBName = "bebber_test"
 )
 
@@ -53,6 +53,17 @@ func (t *TestRequest) SendWithToken(method, path, token string) *httptest.Respon
 	return w
 }
 
+func (t *TestRequest) Send(method, path string) *httptest.ResponseRecorder {
+  reqData := *t
+  body := bytes.NewBufferString(reqData.Body)
+
+	req, _ := http.NewRequest(method, path, body)
+	w := httptest.NewRecorder()
+	reqData.Handler.ServeHTTP(w, req)
+  *t = reqData
+	return w
+}
+
 func MakeTestUserSession(user, token string, db *mgo.Database, t *testing.T) {
   sessionsC := db.C(SessionsCollection)
   expires := time.Now().AddDate(0,0,1)
@@ -70,7 +81,7 @@ func SetupEnvs(t *testing.T) {
 
 func MakeTestGlobals(t *testing.T) Globals{
   dialInfo := &mgo.DialInfo{
-                Addrs: []string{TestDBServer},
+                Addrs: []string{TestDBHost},
               }
   session, err := mgo.DialWithInfo(dialInfo)
   if err != nil {
@@ -86,8 +97,8 @@ func MakeTestGlobals(t *testing.T) Globals{
   return Globals{
                   MongoDB: conn,
                   Config: Config{
-                            "DBName": TestDBName,
-                            "DBServer": TestDBServer,
+                            "MONGODB_DBNAME": TestDBName,
+                            "MONGODB_HOST": TestDBHost,
                         },
                   }
 

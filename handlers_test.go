@@ -387,31 +387,35 @@ func TestUserAuthFail(t *testing.T) {
 
 }
 
-func TestGetUser(t *testing.T) {
-  os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
-  os.Setenv("BEBBER_DB_NAME", "bebber_test")
-  session, err := mgo.Dial("127.0.0.1")
-  if err != nil {
-    t.Fatal(err)
-  }
-  defer session.Close()
+func TestHandler_UserHandler_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  defer globals.MongoDB.Session.Close()
+  db := globals.MongoDB.Session.DB(TestDBName)
+  defer db.DropDatabase()
+
+
   sha1Pass := fmt.Sprintf("%x", sha1.Sum([]byte("test")))
-  dirs := map[string]string{"inbox": "/to/dir"}
-  user := User{Username: "hitman", Password: sha1Pass, Dirs:dirs}
-  user1 := User{Username: "catwomen", Password: sha1Pass, Dirs:dirs}
-  user2 := User{Username: "loveMaster_999", Password: sha1Pass, Dirs:dirs}
-  usersC := session.DB("bebber_test").C("users")
-  usersC.Insert(user, user1, user2)
-  defer session.DB("bebber_test").DropDatabase()
+  user := User{Username: "hitman", Password: sha1Pass}
+  user1 := User{Username: "catwomen", Password: sha1Pass}
+  user2 := User{Username: "loveMaster_999", Password: sha1Pass}
+  usersColl := db.C(UsersCollection)
+  err := usersColl.Insert(user, user1, user2)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
 
-  r := gin.New()
-  r.GET("/:name", GetUser)
-  body := bytes.NewBufferString("")
-  resp := PerformRequest(r, "GET", "/hitman", body)
+  handler := gin.New()
+  userHandler := MakeGlobalsHandler(UserHandler, globals)
+  handler.GET("/:name", userHandler)
+  request := TestRequest{
+                Body: "",
+                Handler: handler,
+              }
+  response := request.Send("GET", "/hitman")
 
-  expect := `{"Username":"hitman","Password":"","Dirs":{"inbox":"/to/dir"}}`+"\n"
-  if resp.Body.String() != expect {
-    t.Fatal("Expect", expect, "was", resp.Body.String())
+  expect := `{"Username":"hitman","Password":""}`
+  if strings.Contains(response.Body.String(), expect) {
+    t.Fatal("Expect", expect, "was", response.Body.String())
   }
 
 }
@@ -542,24 +546,11 @@ func TestLoadFiles(t *testing.T) {
 }
 
 func TestHandler_SearchHandler_OK(t *testing.T) {
-  dialInfo := &mgo.DialInfo{
-                Addrs: []string{TestDBServer},
-              }
-  session, err := mgo.DialWithInfo(dialInfo)
-  if err != nil {
-    t.Fatal(err.Error())
-  }
-  defer session.Close()
+  globals := MakeTestGlobals(t)
+  defer globals.MongoDB.Session.Close()
 
-  db := session.DB(TestDBName)
+  db := globals.MongoDB.Session.DB(TestDBName)
   defer db.DropDatabase()
-
-  conn := MongoDBConn{
-    DialInfo: dialInfo,
-    Session: session,
-    DBName: TestDBName,
-  }
-  globals := Globals{MongoDB: conn}
 
   doc := bson.M{"Blue": "House"}
   testColl := db.C(FilesCollection)
