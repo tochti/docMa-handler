@@ -10,7 +10,7 @@ import (
 
 func Test_Search(t *testing.T) {
   doc := bson.M{"Song": bson.M{"RingOf": "Fire"}}
-  session, err := mgo.Dial(TestDBServer)
+  session, err := mgo.Dial(TestDBHost)
   if err != nil {
     t.Fatal(err.Error())
   }
