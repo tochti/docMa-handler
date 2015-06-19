@@ -1,7 +1,6 @@
 package bebber
 
 import (
-  "os"
   "fmt"
   "time"
   "path"
@@ -12,7 +11,6 @@ import (
   "net/http"
   "math/rand"
   "crypto/sha1"
-  "io/ioutil"
 
   "gopkg.in/mgo.v2"
   "gopkg.in/mgo.v2/bson"
@@ -21,16 +19,9 @@ import (
 
 const (
   FilesCollection = "files"
-  UsersCollection = "users"
-  XSRFCookieName = "XSRF-TOKEN"
 )
 
 type ErrorResponse struct {
-  Status string
-  Msg string
-}
-
-type SuccessResponse struct {
   Status string
   Msg string
 }
@@ -51,117 +42,8 @@ type LoadAccFilesResponse struct {
   AccFiles []AccFile
 }
 
-type MoveFileRequest struct {
-  FromBox string
-  ToBox string
-  File string
-}
-
-type LoginData struct {
-  Username string
-  Password string
-}
-
-type UserSession struct {
-  Token string
-  User string
-  Expires time.Time
-}
-
-type User struct {
-  Username string `bson:username`
-  Password string `bson:password`
-  Dirs map[string]string `bson:dirs`
-}
-
-func LoadBox(c *gin.Context) {
-  boxName := c.Params.ByName("boxname")
-
-  tmpS, err := c.Get("session")
-  userSession := tmpS.(UserSession)
-  if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
-    return
-  }
-
-  session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
-  if err != nil {
-    errMsg := "Db error - "+ err.Error()
-    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
-    return
-  }
-  defer session.Close()
-  db := session.DB(GetSettings("BEBBER_DB_NAME"))
-
-  filesC := db.C(FilesCollection)
-
-  user := User{}
-  err = user.Load(userSession.User, db.C(UsersCollection))
-  if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
-    return
-  }
-
-  var boxPath string
-  if v, ok := user.Dirs[boxName]; ok == true {
-    boxPath = v
-  } else {
-    errMsg := "Cannot find box "+ boxName
-    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
-    return
-  }
-
-  files, err := ioutil.ReadDir(boxPath)
-  if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
-    return
-  }
-  incFiles := []string{}
-  for i := range files {
-    if files[i].IsDir() == false {
-      incFiles = append(incFiles, files[i].Name())
-    }
-  }
-
-  filter := bson.M{
-    "filename": bson.M{"$in": incFiles},
-  }
-
-  var result []FileDoc
-  iter := filesC.Find(filter).Iter()
-  err = iter.All(&result)
-  if err != nil {
-    errMsg := "Db Error - "+ err.Error()
-    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
-    return
-  }
-
-  tmp := make([]string, len(result))
-  for i := range result {
-    tmp[i] = result[i].Filename
-  }
-
-  sub := SubList(incFiles, tmp)
-
-  for i := range sub {
-    e := FileDoc{
-      sub[i],
-      []SimpleTag{},
-      []RangeTag{},
-      []ValueTag{},
-    }
-    result = append(result, e)
-  }
-
-  res := LoadDirResponse{"success", result}
-
-  c.JSON(http.StatusOK, res)
-
-}
-
 func LoadFile(c *gin.Context) {
   filename := strings.Trim(c.Params.ByName("filename"), "\"")
-  boxname := c.Params.ByName("boxname")
 
   session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
   if err != nil {
@@ -182,14 +64,14 @@ func LoadFile(c *gin.Context) {
     c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
   }
 
-  boxpath := user.Dirs[boxname]
+  boxpath := GetSettings("BEBBER_FILES")
   filepath := path.Join(boxpath, filename)
   c.File(filepath)
 }
 
 func AddTags(c *gin.Context) {
   jsonReq := AddTagsRequest{}
-  err := ParseJsonRequest(c, &jsonReq)
+  err := ParseJSONRequest(c, &jsonReq)
   if err != nil {
     errMsg := "Couldn't parse request - "+ err.Error()
     res := ErrorResponse{"fail", errMsg}
@@ -240,7 +122,7 @@ func AddTags(c *gin.Context) {
     return
   }
 
-  c.JSON(http.StatusOK, SuccessResponse{"success", ""})
+  c.JSON(http.StatusOK, SuccessResponse{})
 }
 
 func CreateUpdateDoc(tags []string, doc *FileDoc) error {
@@ -305,7 +187,7 @@ func LoadAccFiles(c *gin.Context) {
 
 func Login(c *gin.Context) {
   loginData := LoginData{}
-  err := ParseJsonRequest(c, &loginData)
+  err := ParseJSONRequest(c, &loginData)
   if err != nil {
     c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
     return
@@ -384,54 +266,38 @@ func UserHandler(c *gin.Context, globals Globals) {
   c.JSON(http.StatusOK, user)
 }
 
-func MoveFile(c *gin.Context) {
-  moveFileRequest := MoveFileRequest{}
-  err := ParseJsonRequest(c, &moveFileRequest)
-  if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
-    return
-  }
-
-  tmp, err := c.Get("session")
-  userSession := tmp.(UserSession)
-  if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
-    return
-  }
-
-  session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
-  if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
-  }
-
-  usersC := session.DB(GetSettings("BEBBER_DB_NAME")).C(UsersCollection)
-
-  user := User{}
-  err = user.Load(userSession.User, usersC)
-  if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
-    return
-  }
-
-  from := path.Join(user.Dirs[moveFileRequest.FromBox], moveFileRequest.File)
-  to := path.Join(user.Dirs[moveFileRequest.ToBox], moveFileRequest.File)
-  err = os.Rename(from, to)
-
-  if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
-    return
-  }
-
-  c.JSON(http.StatusOK, SuccessResponse{Status: "success"})
-}
-
 func SearchHandler(c *gin.Context, g Globals) {
   session := g.MongoDB.Session.Copy()
-  db := session.DB(g.MongoDB.DBName)
+  defer session.Close()
+  db := session.DB(g.Config["MongoDB_DBName"])
 
   buf := new(bytes.Buffer)
   buf.ReadFrom(c.Request.Body)
   body := buf.String()
   result := Search(body, db)
   c.JSON(http.StatusOK, result)
+}
+
+func DocMakeHandler(c *gin.Context, g Globals) {
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(g.Config["MongoDB_DBName"])
+
+  requestBody := DocMakeRequest{}
+  err := ParseJSONRequest(c, &requestBody)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  docID := bson.NewObjectId()
+  requestBody.Id = docID
+  err = db.C(DocsCollection).Insert(requestBody)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  c.JSON(http.StatusOK, MongoDBSuccessResponse{DocID: string(docID)})
 }

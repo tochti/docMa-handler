@@ -9,6 +9,7 @@ import (
   "errors"
   "strconv"
   "strings"
+  "net/http"
   "crypto/sha1"
   "encoding/csv"
   "encoding/json"
@@ -90,6 +91,10 @@ func Month(m int64) (time.Month, error) {
     }
 
   return months[m-1], nil
+}
+
+func MakeFailResponse(c *gin.Context, msg string) {
+  c.JSON(http.StatusOK, FailResponse{Msg: msg})
 }
 
 func GetSettings(k string) string {
@@ -219,7 +224,7 @@ func ParseDate(d string) (time.Time, error) {
 
 }
 
-func ParseJsonRequest(c *gin.Context, s interface{}) error {
+func ParseJSONRequest(c *gin.Context, s interface{}) error {
   buf := new(bytes.Buffer)
   buf.ReadFrom(c.Request.Body)
 
@@ -648,3 +653,4 @@ func (user *User) Save(col *mgo.Collection) error {
   return nil
 
 }
+

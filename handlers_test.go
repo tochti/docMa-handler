@@ -18,102 +18,6 @@ import (
   "github.com/gin-gonic/gin"
 )
 
-func TestLoadBoxRouteOk(t *testing.T) {
-  /* Config */
-  os.Setenv("BEBBER_DB_NAME", "bebber_test")
-  os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
-
-  m := int(0777)
-  mode := os.FileMode(m)
-  tmpDir, err := ioutil.TempDir(testDir, "loaddir")
-  if err != nil {
-    t.Error(err)
-  }
-  ioutil.WriteFile(path.Join(tmpDir, "test1.txt"), []byte{}, mode)
-  ioutil.WriteFile(path.Join(tmpDir, "test2.txt"), []byte{}, mode)
-  ioutil.WriteFile(path.Join(tmpDir, "test3.txt"), []byte{}, mode)
-  _,_ = ioutil.TempDir(tmpDir, "xxx")
-
-  session, err := mgo.Dial("127.0.0.1")
-  if err != nil {
-    t.Error(err)
-  }
-  defer session.Close()
-  db := session.DB("bebber_test")
-  defer db.DropDatabase()
-
-  sT := time.Date(2014, time.April, 1, 0, 0, 0, 0, time.UTC)
-  eT := time.Date(2014, time.April, 2, 0, 0, 0, 0, time.UTC)
-  doc1 := FileDoc{
-    "test1.txt",
-    []SimpleTag{SimpleTag{"sTag1"}},
-    []RangeTag{RangeTag{"rTag1", sT, eT}},
-    []ValueTag{ValueTag{"vTag1", "value1"}},
-  }
-  doc2 := FileDoc{
-    "test2.txt",
-    []SimpleTag{SimpleTag{"sTag1"}},
-    []RangeTag{},
-    []ValueTag{},
-  }
-  doc3 := FileDoc{
-    "notinlist.txt",
-    []SimpleTag{},
-    []RangeTag{},
-    []ValueTag{},
-  }
-
-  c := db.C(FilesCollection)
-  err = c.Insert(doc1, doc2, doc3)
-  if err != nil {
-    t.Error(err)
-  }
-
-  MakeTestUserSession("bommel", "123", db, t)
-
-  user := User{Username:"bommel",
-              Password:"",
-              Dirs: map[string]string{"testbox": tmpDir}}
-  err = user.Save(db.C(UsersCollection))
-  if err != nil {
-    t.Fatal(err.Error())
-  }
-
-  /* Perform Request */
-	handler := gin.New()
-  globals := MakeTestGlobals(t)
-  auth := MakeGlobalsHandler(Auth, globals)
-  handler.GET("/:boxname", auth, LoadBox)
-  req := TestRequest{
-    Handler: handler,
-    Body: "",
-    Header: http.Header{},
-  }
-  w := req.SendWithToken("GET", "/testbox", "123")
-
-  /* Test */
-  rDoc := `{"Status":"success",`
-  rDoc += `"Dir":[{"Filename":"test1.txt","SimpleTags":[{"Tag":"sTag1"}],`
-  rDoc += `"RangeTags":[{"Tag":"rTag1","Start":"2014-04-01T02:00:00+02:00",`
-  rDoc += `"End":"2014-04-02T02:00:00+02:00"}],`
-  rDoc += `"ValueTags":[{"Tag":"vTag1","Value":"value1"}]},{`
-  rDoc += `"Filename":"test2.txt","SimpleTags":[{"Tag":"sTag1"}],`
-  rDoc += `"RangeTags":[],"ValueTags":[]},{`
-  rDoc += `"Filename":"test3.txt","SimpleTags":[],"RangeTags":[],`
-  rDoc += `"ValueTags":[]}]}` + "\n"
-
-  if rDoc != w.Body.String() {
-    t.Error("Error in response json, response is ", w.Body.String())
-  }
-
-  /* cleanup */
-  os.RemoveAll(tmpDir)
-  err = session.DB("bebber_test").DropDatabase()
-  if err != nil {
-    t.Error(err)
-  }
-}
-
 func TestLoadAccFile(t *testing.T) {
   /* setup */
   tmpDir, err := ioutil.TempDir(testDir, "accdata")
@@ -257,6 +161,7 @@ func TestLoadAccFile(t *testing.T) {
   }
 
 }
+
 func TestAddTagsOk(t *testing.T) {
   /* setup */
   os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
@@ -420,131 +325,6 @@ func TestHandler_UserHandler_OK(t *testing.T) {
 
 }
 
-func TestMoveFileOk(t *testing.T) {
-  /* setup Test */
-  fromBox, err := ioutil.TempDir(testDir, "box")
-  if err != nil {
-    t.Fatal(err.Error())
-  }
-  defer os.RemoveAll(fromBox)
-
-  toBox, err := ioutil.TempDir(testDir, "box")
-  if err != nil  {
-    t.Fatal(err.Error())
-  }
-  defer os.RemoveAll(toBox)
-
-  moveFile, err := ioutil.TempFile(fromBox, "moveme")
-  if err != nil {
-    t.Fatal(err.Error())
-  }
-  moveFile.Close()
-
-  session, err := mgo.Dial("127.0.0.1")
-  if err != nil {
-    t.Fatal(err.Error())
-  }
-  defer session.Close()
-  defer session.DB("bebber_test").DropDatabase()
-
-  sessionsC := session.DB("bebber_test").C(SessionsCollection)
-  expires := time.Now().AddDate(0,0,1)
-  userSession := UserSession{Token: "123", User: "kloß", Expires: expires}
-  err = sessionsC.Insert(userSession)
-  if err != nil {
-    t.Fatal(err.Error())
-  }
-
-  usersC := session.DB("bebber_test").C(UsersCollection)
-  dirs := map[string]string{"from":fromBox,"to":toBox}
-  user := User{Username:"kloß",Password:"",Dirs:dirs}
-  err = usersC.Insert(user)
-  if err != nil {
-    t.Fatal(err.Error())
-  }
-
-  /* Perform Request */
-  serv := gin.New()
-  globals := MakeTestGlobals(t)
-  auth := MakeGlobalsHandler(Auth, globals)
-  serv.POST("/", auth, MoveFile)
-  bodyStr := `{"FromBox":"from","ToBox":"to","File":"`+path.Base(moveFile.Name())+`"}`
-  body := bytes.NewBufferString(bodyStr)
-  header := http.Header{}
-  header.Add("X-XSRF-TOKEN", "123")
-  resp := PerformRequestHeader(serv, "POST", "/", body, &header)
-
-  if resp.Code != 200 {
-    t.Fatal("Expect 200 was", resp.Code)
-  }
-
-  err = moveFile.Sync()
-  if os.IsExist(err) == true {
-    t.Fatal(moveFile.Name, " should be moved", resp.Body.String())
-  }
-
-  _, err = os.Open(path.Join(toBox, path.Base(moveFile.Name())))
-  if err != nil {
-    t.Fatal(err.Error(), resp.Body.String())
-  }
-
-}
-
-func TestLoadFiles(t *testing.T) {
-  SetupEnvs(t)
-
-  tmpDir, err := ioutil.TempDir(testDir, "box")
-  if err != nil {
-    t.Fatal(err.Error())
-  }
-  defer os.RemoveAll(tmpDir)
-
-  m := int(0777)
-  mode := os.FileMode(m)
-  ioutil.WriteFile(path.Join(tmpDir, "test file.pdf"), []byte("test"), mode)
-
-  session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
-  if err != nil {
-    t.Fatal(err.Error())
-  }
-  db := session.DB(GetSettings("BEBBER_DB_NAME"))
-  defer session.Close()
-  defer db.DropDatabase()
-
-  MakeTestUserSession("ladykiller1980", "123", db, t)
-
-  usersC := db.C(UsersCollection)
-  user := User{
-          Username: "ladykiller1980",
-          Password: "",
-          Dirs: map[string]string{"inbox": tmpDir},
-        }
-  err = user.Save(usersC)
-  if err != nil {
-    t.Fatal(err.Error())
-  }
-
-  globals := MakeTestGlobals(t)
-  handler := gin.New()
-  auth := MakeGlobalsHandler(Auth, globals)
-  handler.GET("/:boxname/:filename", auth, LoadFile)
-  testRequest := TestRequest{
-                    Body: "",
-                    Header: http.Header{},
-                    Handler: handler,
-                  }
-  resp := testRequest.SendWithToken("GET", "/inbox/\"test file.pdf\"", "123")
-
-  if resp.Code != 200 {
-    t.Fatal("Expect 200 was", resp.Code)
-  }
-
-  if resp.Body.String() != "test" {
-    t.Fatal("Expect test was", resp.Body.String())
-  }
-
-}
-
 func TestHandler_SearchHandler_OK(t *testing.T) {
   globals := MakeTestGlobals(t)
   defer globals.MongoDB.Session.Close()
@@ -568,6 +348,38 @@ func TestHandler_SearchHandler_OK(t *testing.T) {
   expect := `[{"Blue": "House"}]`
   if strings.Contains(response.Body.String(), expect) {
     t.Fatal("Expect", expect, "was", response.Body.String())
+  }
+
+}
+
+// Make a new Doc in DB simple case
+func Test_DocMakeHandler_MakeNewDocOK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  defer globals.MongoDB.Session.Close()
+
+  docRequest := Doc{
+              Doc: "darkmoon.txt",
+              Barcode: "darkmoon",
+              Note: "There was a man...",
+              Labels: []Label{Label("old"), Label("story")},
+              AccountData: DocAccountData{DocNumber: "0815"},
+            }
+  docRequestJSON, err := json.Marshal(docRequest)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  handler := gin.New()
+  handler.POST("/Doc", MakeGlobalsHandler(DocMakeHandler, globals))
+  request := TestRequest{
+                Body: string(docRequestJSON),
+                Header: http.Header{},
+                Handler: handler,
+              }
+  response := request.Send("POST", "/Doc")
+
+  if strings.Contains(response.Body.String(), `"Status":"success"`) {
+    t.Fatal("Expect to contains \"Status\":\"success\" was", response.Body.String())
   }
 
 }

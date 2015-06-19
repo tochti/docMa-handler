@@ -517,8 +517,8 @@ func TestLoadUserOk(t *testing.T) {
   }
   defer session.Close()
 
-  userTmp := User{Username: "XXX", Password: "", Dirs: map[string]string{"i":"ih"}}
-  userExpect := User{Username: "Haschel", Password: "", Dirs: map[string]string{"i":"ah"}}
+  userTmp := User{Username: "XXX", Password: ""}
+  userExpect := User{Username: "Haschel", Password: ""}
   db := session.DB("bebber_test")
   col := db.C(UsersCollection)
   defer db.DropDatabase()
@@ -562,9 +562,7 @@ func TestSaveUserOk(t *testing.T) {
 
   sha1Pass := fmt.Sprintf("%x", sha1.Sum([]byte("tt")))
   col := session.DB("bebber_test").C(UsersCollection)
-  userExpect := User{Username: "test",
-            Password: "tt",
-            Dirs: map[string]string{"box":"/box"}}
+  userExpect := User{Username: "test", Password: "tt"}
   err = userExpect.Save(col)
 
   user := User{}
