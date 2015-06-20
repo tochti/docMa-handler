@@ -94,7 +94,7 @@ func Month(m int64) (time.Month, error) {
 }
 
 func MakeFailResponse(c *gin.Context, msg string) {
-  c.JSON(http.StatusOK, FailResponse{Msg: msg})
+  c.JSON(http.StatusOK, FailResponse{Status: "fail", Msg: msg})
 }
 
 func GetSettings(k string) string {

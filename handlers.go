@@ -269,7 +269,7 @@ func UserHandler(c *gin.Context, globals Globals) {
 func SearchHandler(c *gin.Context, g Globals) {
   session := g.MongoDB.Session.Copy()
   defer session.Close()
-  db := session.DB(g.Config["MongoDB_DBName"])
+  db := session.DB(g.Config["MONGODB_DBNAME"])
 
   buf := new(bytes.Buffer)
   buf.ReadFrom(c.Request.Body)
@@ -282,7 +282,8 @@ func DocMakeHandler(c *gin.Context, g Globals) {
   session := g.MongoDB.Session.Copy()
   defer session.Close()
 
-  db := session.DB(g.Config["MongoDB_DBName"])
+  db := session.DB(g.Config["MONGODB_DBNAME"])
+  docsColl := db.C(DocsColl)
 
   requestBody := DocMakeRequest{}
   err := ParseJSONRequest(c, &requestBody)
@@ -291,13 +292,26 @@ func DocMakeHandler(c *gin.Context, g Globals) {
     return
   }
 
-  docID := bson.NewObjectId()
-  requestBody.Id = docID
-  err = db.C(DocsCollection).Insert(requestBody)
+  query := docsColl.Find(Doc{Doc: requestBody.Doc})
+  n, err := query.Count()
   if err != nil {
     MakeFailResponse(c, err.Error())
     return
   }
 
-  c.JSON(http.StatusOK, MongoDBSuccessResponse{DocID: string(docID)})
+  if n > 0 {
+    MakeFailResponse(c, "Document already exists!")
+    return
+  }
+
+  docID := bson.NewObjectId()
+  requestBody.ID = docID
+  err = db.C(DocsColl).Insert(requestBody)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  c.JSON(http.StatusOK,
+         MongoDBSuccessResponse{Status: "success", DocID: docID.Hex()})
 }

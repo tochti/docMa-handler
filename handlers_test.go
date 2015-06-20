@@ -352,7 +352,7 @@ func TestHandler_SearchHandler_OK(t *testing.T) {
 
 }
 
-// Make a new Doc in DB simple case
+// Make a new Doc in DB, simple case
 func Test_DocMakeHandler_MakeNewDocOK(t *testing.T) {
   globals := MakeTestGlobals(t)
   defer globals.MongoDB.Session.Close()
@@ -364,6 +364,7 @@ func Test_DocMakeHandler_MakeNewDocOK(t *testing.T) {
               Labels: []Label{Label("old"), Label("story")},
               AccountData: DocAccountData{DocNumber: "0815"},
             }
+
   docRequestJSON, err := json.Marshal(docRequest)
   if err != nil {
     t.Fatal(err.Error())
@@ -378,8 +379,71 @@ func Test_DocMakeHandler_MakeNewDocOK(t *testing.T) {
               }
   response := request.Send("POST", "/Doc")
 
-  if strings.Contains(response.Body.String(), `"Status":"success"`) {
-    t.Fatal("Expect to contains \"Status\":\"success\" was", response.Body.String())
+  if strings.Contains(response.Body.String(), `"Status":"success"`) == false {
+    t.Fatal("Expect to contains \"Status\":\"success\" was",
+            response.Body.String())
   }
 
+  successResponse := MongoDBSuccessResponse{}
+  err = json.Unmarshal([]byte(response.Body.String()), &successResponse)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  db := globals.MongoDB.Session.Copy().DB(TestDBName)
+  defer db.DropDatabase()
+
+  doc := Doc{}
+  err = db.C(DocsColl).Find(bson.M{"_id": bson.ObjectIdHex(successResponse.DocID)}).One(&doc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  docJSON, err := json.Marshal(doc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  docRequest.ID = bson.ObjectIdHex(successResponse.DocID)
+  docRequestJSON, err = json.Marshal(docRequest)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if string(docRequestJSON) != string(docJSON) {
+    t.Fatal("Expect", string(docRequestJSON), "was", string(docJSON))
+  }
+
+}
+
+
+// Try to make a doc although a doc with the same name already exists
+func Test_DocMakeHandler_AlreadyExistsFail(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  defer globals.MongoDB.Session.Close()
+
+  db := globals.MongoDB.Session.Copy().DB(TestDBName)
+  defer db.DropDatabase()
+
+  doc := Doc{Doc: "EarlyBird.txt"}
+  err := db.C(DocsColl).Insert(doc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  docJSON, err := json.Marshal(doc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  handler := gin.New()
+  handler.POST("/Doc", MakeGlobalsHandler(DocMakeHandler, globals))
+  request := TestRequest{
+                Body: string(docJSON),
+                Header: http.Header{},
+                Handler: handler,
+              }
+
+  response := request.Send("POST", "/Doc")
+
+  if strings.Contains(response.Body.String(), "fail") == false {
+    t.Fatal("Expect the response to fail was", response)
+  }
 }

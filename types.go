@@ -6,7 +6,7 @@ import (
 )
 
 const (
-  DocsCollection = "Docs"
+  DocsColl = "Docs"
   UsersCollection = "Users"
   XSRFCookieName = "XSRF-TOKEN"
 )
@@ -17,12 +17,10 @@ type Label string
 //  Requests and Responses
 //
 
-type DocMakeRequest struct {
-  *Doc
-}
+type DocMakeRequest Doc
 
 type MongoDBSuccessResponse struct {
-  Status string `fail`
+  Status string
   DocID string
 }
 
@@ -31,7 +29,7 @@ type SuccessResponse struct {
 }
 
 type FailResponse struct {
-  Status string `fail`
+  Status string
   Msg string
 }
 
@@ -88,7 +86,7 @@ type DocAccountData struct {
 }
 
 type Doc struct {
-  Id bson.ObjectId
+  ID bson.ObjectId `bson:"_id,omitempty"`
   Doc string
   Barcode string
   Infos DocInfos
