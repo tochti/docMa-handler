@@ -292,21 +292,27 @@ func DocMakeHandler(c *gin.Context, g Globals) {
     return
   }
 
-  query := docsColl.Find(Doc{Doc: requestBody.Doc})
-  n, err := query.Count()
-  if err != nil {
-    MakeFailResponse(c, err.Error())
+  if requestBody.Name == "" {
+    MakeFailResponse(c, "Missing a name!")
     return
   }
 
-  if n > 0 {
+  if requestBody.Infos.DateOfScan.IsZero() ||
+     requestBody.Infos.DateOfReceipt.IsZero() {
+    MakeFailResponse(c, "Missing the infos field!")
+    return
+  }
+
+  doc := Doc{Name: requestBody.Name}
+  err = doc.Find(db)
+  if err == nil {
     MakeFailResponse(c, "Document already exists!")
     return
   }
 
   docID := bson.NewObjectId()
   requestBody.ID = docID
-  err = db.C(DocsColl).Insert(requestBody)
+  err = docsColl.Insert(requestBody)
   if err != nil {
     MakeFailResponse(c, err.Error())
     return
@@ -314,4 +320,30 @@ func DocMakeHandler(c *gin.Context, g Globals) {
 
   c.JSON(http.StatusOK,
          MongoDBSuccessResponse{Status: "success", DocID: docID.Hex()})
+}
+
+func DocChangeHandler(c *gin.Context, g Globals) {
+  changeRequest := DocChangeRequest{}
+  ParseJSONRequest(c, &changeRequest)
+
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(g.Config["MONGODB_DBNAME"])
+
+  doc := Doc{Name: changeRequest.Name}
+  err = doc.Find(db)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  changeDoc := Doc(changeRequest)
+  err = doc.Change(changeDoc, db)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  c.JSON(http.StatusOK, SuccessResponse{Status: "success"})
 }

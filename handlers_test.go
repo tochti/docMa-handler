@@ -357,8 +357,14 @@ func Test_DocMakeHandler_MakeNewDocOK(t *testing.T) {
   globals := MakeTestGlobals(t)
   defer globals.MongoDB.Session.Close()
 
+  date := time.Date(2015, 1, 1, 0,0,0,0, time.UTC)
+  docInfos := DocInfos {
+                DateOfScan: date,
+                DateOfReceipt: date,
+              }
   docRequest := Doc{
-              Doc: "darkmoon.txt",
+              Name: "darkmoon.txt",
+              Infos: docInfos,
               Barcode: "darkmoon",
               Note: "There was a man...",
               Labels: []Label{Label("old"), Label("story")},
@@ -424,7 +430,11 @@ func Test_DocMakeHandler_AlreadyExistsFail(t *testing.T) {
   db := globals.MongoDB.Session.Copy().DB(TestDBName)
   defer db.DropDatabase()
 
-  doc := Doc{Doc: "EarlyBird.txt"}
+  docInfos := DocInfos {
+                DateOfScan: time.Now(),
+                DateOfReceipt: time.Now(),
+              }
+  doc := Doc{Name: "EarlyBird.txt", Infos: docInfos}
   err := db.C(DocsColl).Insert(doc)
   if err != nil {
     t.Fatal(err.Error())
@@ -443,7 +453,150 @@ func Test_DocMakeHandler_AlreadyExistsFail(t *testing.T) {
 
   response := request.Send("POST", "/Doc")
 
-  if strings.Contains(response.Body.String(), "fail") == false {
-    t.Fatal("Expect the response to fail was", response)
+  failMsg := "Document already exists!"
+  if strings.Contains(response.Body.String(), failMsg) == false {
+    t.Fatal("Expect Msg", failMsg, "was", response)
+  }
+}
+
+// Try to make a doc send crazy request 
+func Test_DocMakeHandler_CrazyFail(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  defer globals.MongoDB.Session.Close()
+  defer globals.MongoDB.Session.Copy().DB(TestDBName).DropDatabase()
+
+  handler := gin.New()
+  handler.POST("/Doc", MakeGlobalsHandler(DocMakeHandler, globals))
+  testDate := time.Date(2015,1,1,0,0,0,0,time.UTC)
+  dateStr := testDate.Format(time.RFC3339Nano)
+  fmt.Println(dateStr)
+  request := TestRequest{
+                Body: `{"Name": "chunk", "Infos": {"DateOfReceipt": "`+ dateStr +`", "DateOfScan": "`+ dateStr +`"}, "Fail": "yes!"}`,
+                Header: http.Header{},
+                Handler: handler,
+              }
+
+  response := request.Send("POST", "/Doc")
+
+  failMsg := "Missing a name!"
+  if strings.Contains(response.Body.String(), failMsg) == false {
+    t.Fatal("Expect Msg", failMsg, "was", response)
+  }
+}
+
+// Try to make a doc without a doc name 
+func Test_DocMakeHandler_WithoutNameFail(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  defer globals.MongoDB.Session.Close()
+
+  doc := Doc{}
+  docJSON, err := json.Marshal(doc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  handler := gin.New()
+  handler.POST("/Doc", MakeGlobalsHandler(DocMakeHandler, globals))
+  request := TestRequest{
+                Body: string(docJSON),
+                Header: http.Header{},
+                Handler: handler,
+              }
+
+  response := request.Send("POST", "/Doc")
+
+  failMsg := "Missing a name!"
+  if strings.Contains(response.Body.String(), failMsg) == false {
+    t.Fatal("Expect Msg", failMsg, "was", response)
+  }
+}
+
+// Try to make a doc without a info field
+func Test_DocMakeHandler_WithoutInfosFail(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  defer globals.MongoDB.Session.Close()
+
+  doc := Doc{Name: "NoInfo.pdf"}
+  docJSON, err := json.Marshal(doc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  handler := gin.New()
+  handler.POST("/Doc", MakeGlobalsHandler(DocMakeHandler, globals))
+  request := TestRequest{
+                Body: string(docJSON),
+                Header: http.Header{},
+                Handler: handler,
+              }
+
+  response := request.Send("POST", "/Doc")
+
+  failMsg := "Missing the infos field!"
+  if strings.Contains(response.Body.String(), failMsg) == false {
+    t.Fatal("Expect Msg", failMsg, "was", response)
+  }
+}
+
+// Change a existing doc. Append not existing fields
+func Test_DocChangeHandler_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  defer globals.MongoDB.Session.Close()
+
+  db := globals.MongoDB.Session.Copy().DB(TestDBName)
+  defer db.DropDatabase()
+  docsColl := db.C(DocsColl)
+
+  docID := bson.NewObjectId()
+  docTmp := Doc{ID: docID, Name: "Touchme.txt"}
+  err := docsColl.Insert(docTmp)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  changeRequest := DocChangeRequest{
+                    Name: "Touchme.txt",
+                    Barcode: "Touchme",
+                    Labels: []Label{Label("oohh"), Label("aahh")},
+                    Note: "Don't stop!",
+                    AccountData: DocAccountData{DocNumber: "VIP"},
+                  }
+  changeRequestJSON, err := json.Marshal(changeRequest)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  handler := gin.New()
+  handler.PATCH("/Doc", MakeGlobalsHandler(DocChangeHandler, globals))
+  request := TestRequest{
+                Body: string(changeRequestJSON),
+                Header: http.Header{},
+                Handler: handler,
+              }
+
+  response := request.Send("PATCH", "/Doc")
+
+  if strings.Contains(response.Body.String(), "success") == false {
+    t.Fatal("Expect success response was", response)
+  }
+
+  doc := Doc{Name: "Touchme.txt"}
+  err = doc.Find(db)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  doc.ID = docID
+  docJSON, err := json.Marshal(doc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  changeRequest.ID = docID
+  changeRequestJSON, err = json.Marshal(changeRequest)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if string(changeRequestJSON) != string(docJSON) {
+    t.Fatal("Expect", string(changeRequestJSON), "was", string(docJSON))
   }
 }

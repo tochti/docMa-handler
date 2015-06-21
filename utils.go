@@ -654,3 +654,82 @@ func (user *User) Save(col *mgo.Collection) error {
 
 }
 
+func (d *Doc) Find(db *mgo.Database) error {
+  doc := *d
+  docsColl := db.C(DocsColl)
+
+  query := docsColl.Find(bson.M{"name": doc.Name})
+  n, err := query.Count()
+  if err != nil {
+    return err
+  }
+
+  if n == 0 {
+    return errors.New("Cannot find document "+ doc.Name)
+  }
+
+  if n > 1 {
+    return errors.New("Found "+ strconv.Itoa(n) +" documents "+ doc.Name)
+  }
+
+  err = query.One(&doc)
+  if err != nil {
+    return err
+  }
+
+  *d = doc
+
+  return nil
+}
+
+func (d *Doc) Change(changeDoc Doc, db *mgo.Database) error {
+  doc := *d
+  docsColl := db.C(DocsColl)
+
+  if changeDoc.Infos.IsEmpty() == false {
+      return errors.New("Not allowed to change infos!")
+  }
+
+  err := docsColl.Update(bson.M{"name": doc.Name}, changeDoc)
+  if err != nil {
+    return err
+  }
+
+  doc.Barcode = changeDoc.Barcode
+  doc.AccountData = changeDoc.AccountData
+  doc.Note = changeDoc.Note
+  doc.Labels = changeDoc.Labels
+
+  *d = doc
+
+  return nil
+}
+
+func (ad DocAccountData) IsEmpty() bool {
+  if (ad.DocDate.IsZero()) &&
+    (ad.DateOfEntry.IsZero()) &&
+    (ad.DocNumberRange == "") &&
+    (ad.DocNumber == "") &&
+    (ad.PostingText == "") &&
+    (ad.AmountPosted == 0) &&
+    (ad.DebitAcc == 0) &&
+    (ad.CreditAcc == 0) &&
+    (ad.TaxCode == 0) &&
+    (ad.CostUnit1 == "") &&
+    (ad.CostUnit2 == "") &&
+    (ad.AmountPostedEuro == 0.0) &&
+    (ad.Currency == "") {
+      return true
+  } else {
+    return false
+  }
+}
+
+func (infos DocInfos) IsEmpty() bool {
+  if (infos.DateOfScan.IsZero()) &&
+     (infos.DateOfReceipt.IsZero()) {
+    return true
+  } else {
+    return false
+  }
+}

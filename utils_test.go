@@ -5,8 +5,10 @@ import (
   "fmt"
   "path"
   "time"
+  "strings"
   "testing"
   "crypto/sha1"
+  "encoding/json"
 
   "gopkg.in/mgo.v2"
   "gopkg.in/mgo.v2/bson"
@@ -577,6 +579,126 @@ func TestSaveUserOk(t *testing.T) {
 
   if (sha1Pass != user.Password) {
     t.Fatal("Expect", sha1Pass, "was", user.Password)
+  }
+
+}
+
+func Test_FindDoc_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  docID := bson.NewObjectId()
+  expectDoc := Doc{ID: docID, Name: "karl.pdf", Note: "Note", Labels: []Label{}}
+  err := db.C(DocsColl).Insert(expectDoc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  doc := Doc{Name: "karl.pdf"}
+  err = doc.Find(db)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  expectDocJSON, err := json.Marshal(expectDoc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  docJSON, err := json.Marshal(doc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if string(expectDocJSON) != string(docJSON) {
+    t.Fatal("Exepect", string(expectDocJSON), "was", string(docJSON))
+  }
+
+}
+
+func Test_FindDoc_Fail(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  doc := Doc{Name: "karl.pdf"}
+  err = doc.Find(db)
+  if strings.Contains(err.Error(), "Cannot find") == false {
+    t.Fatal("Expect to fail with Cannot find document was", err)
+  }
+}
+
+func Test_ChangeDoc_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  doc := Doc{Name: "changeme", Infos: DocInfos{}}
+
+  docsColl := db.C(DocsColl)
+  err := docsColl.Insert(doc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  changeDocRequest := Doc{Name: "changeme", Barcode: "barcode"}
+  err = doc.Change(changeDocRequest, db)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  docUpdated := Doc{Name: "changeme"}
+  err = docUpdated.Find(db)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if doc.Barcode != "barcode" {
+    t.Fatal("Expect barcode was", doc.Barcode)
+  }
+
+  if docUpdated.Barcode != "barcode" {
+    t.Fatal("Expect barcode was", docUpdated.Barcode)
+  }
+}
+
+func Test_ChangeDoc_InfoFail(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  doc := Doc{Name: "changeme", Infos: DocInfos{}}
+
+  docsColl := db.C(DocsColl)
+  err := docsColl.Insert(doc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  docInfos := DocInfos{
+              DateOfScan: time.Now(),
+            }
+  changeDocRequest := Doc{Name: "changeme", Infos: docInfos}
+  err = doc.Change(changeDocRequest, db)
+  if err == nil {
+    t.Fatal("Expect Not allowed to change infos error was nil")
+  }
+
+  if strings.Contains(err.Error(), "Not allowed to change infos") == false {
+    t.Fatal(err.Error())
   }
 
 }

@@ -18,6 +18,7 @@ type Label string
 //
 
 type DocMakeRequest Doc
+type DocChangeRequest Doc
 
 type MongoDBSuccessResponse struct {
   Status string
@@ -87,7 +88,7 @@ type DocAccountData struct {
 
 type Doc struct {
   ID bson.ObjectId `bson:"_id,omitempty"`
-  Doc string
+  Name string
   Barcode string
   Infos DocInfos
   Note DocNote
