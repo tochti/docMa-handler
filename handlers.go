@@ -1,6 +1,7 @@
 package bebber
 
 import (
+  "os"
   "fmt"
   "time"
   "path"
@@ -375,6 +376,11 @@ func DocRemoveHandler(c *gin.Context, g Globals) {
   if err != nil {
     MakeFailResponse(c, err.Error())
     return
+  }
+
+  err = os.Remove(path.Join(g.Config["FILES_DIR"], name))
+  if err != nil {
+    MakeFailResponse(c, err.Error())
   }
 
   c.JSON(http.StatusOK, SuccessResponse{"success"})

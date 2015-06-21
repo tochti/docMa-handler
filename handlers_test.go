@@ -689,7 +689,7 @@ func Test_DocRemoveHandler_OK(t *testing.T) {
   }
 
   tmpFilePath := path.Join(tmpDir, fileBase)
-  if _, err := os.Stat(tmpFilePath); os.IsNotExist(err) {
+  if _, err := os.Stat(tmpFilePath); os.IsNotExist(err) == false {
     t.Fatal("Expect file", tmpFilePath, "to be delete")
   }
 
