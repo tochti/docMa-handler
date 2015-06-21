@@ -231,7 +231,7 @@ func Login(c *gin.Context) {
 
   cookie := http.Cookie{Name: XSRFCookieName, Value: token, Expires: expires}
   http.SetCookie(c.Writer, &cookie)
-  c.JSON(http.StatusOK, SuccessResponse{Status: "success"})
+  c.JSON(http.StatusOK, SuccessResponse{"success"})
 }
 
 func UserHandler(c *gin.Context, globals Globals) {
@@ -345,7 +345,7 @@ func DocChangeHandler(c *gin.Context, g Globals) {
     return
   }
 
-  c.JSON(http.StatusOK, SuccessResponse{Status: "success"})
+  c.JSON(http.StatusOK, SuccessResponse{"success"})
 }
 
 func DocReadHandler(c *gin.Context, g Globals) {
@@ -361,5 +361,21 @@ func DocReadHandler(c *gin.Context, g Globals) {
     return
   }
 
-  c.JSON(http.StatusOK, doc)
+  c.JSON(http.StatusOK, DocReadResponse{Status: "success", Doc: doc})
+}
+
+func DocRemoveHandler(c *gin.Context, g Globals) {
+  name := c.Params.ByName("name")
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(g.Config["MONGODB_DBNAME"])
+  doc := Doc{Name: name}
+  err := doc.Remove(db)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  c.JSON(http.StatusOK, SuccessResponse{"success"})
 }

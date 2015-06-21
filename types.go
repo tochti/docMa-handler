@@ -39,6 +39,11 @@ type DocMakeResponse struct {
   Id bson.ObjectId
 }
 
+type DocReadResponse struct {
+  Status string
+  Doc Doc
+}
+
 //
 // Authentication
 //

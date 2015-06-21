@@ -705,6 +705,17 @@ func (d *Doc) Change(changeDoc Doc, db *mgo.Database) error {
   return nil
 }
 
+func (d *Doc) Remove(db *mgo.Database) error {
+  doc := *d
+  docsColl := db.C(DocsColl)
+  err := docsColl.Remove(bson.M{"name": doc.Name})
+  if err != nil {
+    return err
+  }
+
+  return nil
+}
+
 func (ad DocAccountData) IsEmpty() bool {
   if (ad.DocDate.IsZero()) &&
     (ad.DateOfEntry.IsZero()) &&

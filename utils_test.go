@@ -702,3 +702,32 @@ func Test_ChangeDoc_InfoFail(t *testing.T) {
   }
 
 }
+
+func Test_RemoveDoc_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  doc := Doc{Name: "Pimpel", Infos: DocInfos{}}
+
+  docsColl := db.C(DocsColl)
+  err := docsColl.Insert(doc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  err = doc.Remove(db)
+
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  err = doc.Find(db)
+  if strings.Contains(err.Error(), "Cannot find document") == false {
+    t.Fatal(err.Error())
+  }
+
+}

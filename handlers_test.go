@@ -228,7 +228,7 @@ func TestAddTagsOk(t *testing.T) {
 
 }
 
-func TestUserAuthOK(t *testing.T) {
+func Test_UserAuth_OK(t *testing.T) {
   os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
   os.Setenv("BEBBER_DB_NAME", "bebber_test")
   session, err := mgo.Dial("127.0.0.1")
@@ -262,7 +262,7 @@ func TestUserAuthOK(t *testing.T) {
   }
 }
 
-func TestUserAuthFail(t *testing.T) {
+func Test_UserAuth_Fail(t *testing.T) {
   os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
   os.Setenv("BEBBER_DB_NAME", "bebber_test")
   session, err := mgo.Dial("127.0.0.1")
@@ -292,7 +292,7 @@ func TestUserAuthFail(t *testing.T) {
 
 }
 
-func TestHandler_UserHandler_OK(t *testing.T) {
+func Test_UserHandler_OK(t *testing.T) {
   globals := MakeTestGlobals(t)
   defer globals.MongoDB.Session.Close()
   db := globals.MongoDB.Session.DB(TestDBName)
@@ -325,7 +325,7 @@ func TestHandler_UserHandler_OK(t *testing.T) {
 
 }
 
-func TestHandler_SearchHandler_OK(t *testing.T) {
+func Test_SearchHandler_OK(t *testing.T) {
   globals := MakeTestGlobals(t)
   defer globals.MongoDB.Session.Close()
 
@@ -629,12 +629,68 @@ func Test_DocReadHandler_OK(t *testing.T) {
               }
   response := request.Send("GET", "/Doc/Seek.pdf")
 
-  expectDocJSON, err := json.Marshal(expectDoc)
+  docReadResponse := DocReadResponse{Status: "success", Doc: expectDoc}
+  docReadResponseJSON, err := json.Marshal(docReadResponse)
   if err != nil {
     t.Fatal(err.Error())
   }
 
-  if string(expectDocJSON)+"\n" != response.Body.String() {
-    t.Fatal("Expect", string(expectDocJSON), "was", response.Body.String())
+  if string(docReadResponseJSON)+"\n" != response.Body.String() {
+    t.Fatal("Expect", string(docReadResponseJSON), "was", response.Body.String())
   }
+}
+
+// Remove Doc
+func Test_DocRemoveHandler_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  tmpDir, err := ioutil.TempDir(testDir, "remove")
+  defer os.RemoveAll(tmpDir)
+  globals.Config["FILES_DIR"] = tmpDir
+
+  tmpFile, err := ioutil.TempFile(tmpDir, "remove")
+  fileBase := path.Base(tmpFile.Name())
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+  docsColl := db.C(DocsColl)
+
+  docID := bson.NewObjectId()
+  expectDoc := Doc{ID: docID, Name: fileBase, Labels: []Label{}}
+
+  err = docsColl.Insert(expectDoc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  handler := gin.New()
+  handler.DELETE("/Doc/:name", MakeGlobalsHandler(DocRemoveHandler, globals))
+
+  request := TestRequest{
+                Body: "",
+                Header: http.Header{},
+                Handler: handler,
+              }
+  url := "/Doc/"+ fileBase
+  response := request.Send("DELETE", url)
+
+  if strings.Contains(response.Body.String(), "success") == false {
+    t.Fatal("Expect successs response was", response)
+  }
+
+  err = expectDoc.Find(db)
+  if err == nil {
+    t.Fatal("Expect Cannot find document error was", err)
+  }
+  if strings.Contains(err.Error(), "Cannot find document") == false {
+    t.Fatal("Expect Cannot find document error was", err)
+  }
+
+  tmpFilePath := path.Join(tmpDir, fileBase)
+  if _, err := os.Stat(tmpFilePath); os.IsNotExist(err) {
+    t.Fatal("Expect file", tmpFilePath, "to be delete")
+  }
+
 }
