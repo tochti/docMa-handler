@@ -347,3 +347,19 @@ func DocChangeHandler(c *gin.Context, g Globals) {
 
   c.JSON(http.StatusOK, SuccessResponse{Status: "success"})
 }
+
+func DocReadHandler(c *gin.Context, g Globals) {
+  name := c.Params.ByName("name")
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(g.Config["MONGODB_DBNAME"])
+  doc := Doc{Name: name}
+  err := doc.Find(db)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  c.JSON(http.StatusOK, doc)
+}

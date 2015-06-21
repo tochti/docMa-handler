@@ -600,3 +600,41 @@ func Test_DocChangeHandler_OK(t *testing.T) {
     t.Fatal("Expect", string(changeRequestJSON), "was", string(docJSON))
   }
 }
+
+// Read Doc
+func Test_DocReadHandler_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+  docsColl := db.C(DocsColl)
+
+  docID := bson.NewObjectId()
+  expectDoc := Doc{ID: docID, Name: "Seek.pdf", Labels: []Label{}}
+
+  err := docsColl.Insert(expectDoc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  handler := gin.New()
+  handler.GET("/Doc/:name", MakeGlobalsHandler(DocReadHandler, globals))
+
+  request := TestRequest{
+                Body: "",
+                Header: http.Header{},
+                Handler: handler,
+              }
+  response := request.Send("GET", "/Doc/Seek.pdf")
+
+  expectDocJSON, err := json.Marshal(expectDoc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if string(expectDocJSON)+"\n" != response.Body.String() {
+    t.Fatal("Expect", string(expectDocJSON), "was", response.Body.String())
+  }
+}
