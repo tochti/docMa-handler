@@ -162,72 +162,6 @@ func TestLoadAccFile(t *testing.T) {
 
 }
 
-func TestAddTagsOk(t *testing.T) {
-  /* setup */
-  os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
-  os.Setenv("BEBBER_DB_NAME", "bebber_test")
-  session, err := mgo.Dial("127.0.0.1")
-  if err != nil {
-    t.Fatal(err.Error())
-  }
-  defer session.DB("bebber_test").DropDatabase()
-  collection := session.DB("bebber_test").C("files")
-  tmp := RangeTag{
-            "rT1",
-            time.Date(2014, time.April, 6, 0, 0, 0, 0, time.UTC),
-            time.Date(2014, time.April, 7, 0, 0, 0, 0, time.UTC),
-          }
-  doc := FileDoc{Filename: "test.txt",
-                 SimpleTags: []SimpleTag{SimpleTag{"sT1"}},
-                 ValueTags: []ValueTag{ValueTag{"vT1", "v1"}},
-                 RangeTags: []RangeTag{tmp},
-                }
-
-  collection.Insert(doc)
-
-  /* perfom request */
-  s := gin.New()
-  s.POST("/", AddTags)
-  body := bytes.NewBufferString(`{
-          "Filename": "test.txt",
-          "Tags": ["sT2", "vT2:v2", "rT2:01042014..02042014"]
-          }`)
-  res := PerformRequest(s, "POST", "/", body)
-
-  /* test */
-  if res.Code != 200 {
-    t.Error("Http Code should be 200 but is ", res.Code)
-  }
-  if res.Body.String() != `{"Status":"success","Msg":""}`+"\n" {
-    t.Error("Wrong response msg got ", res.Body.String())
-  }
-  rD := FileDoc{}
-  err = collection.Find(bson.M{"filename": "test.txt"}).One(&rD)
-  if err != nil {
-    t.Fatal(err.Error())
-  }
-
-  if len(rD.SimpleTags) != 2 {
-    t.Fatal("SimpleTags len should be 2 but is ", rD.SimpleTags)
-  }
-  if len(rD.ValueTags) != 2 {
-    t.Fatal("ValueTags len should be 2 but is ", rD.ValueTags)
-  }
-  if len(rD.RangeTags) != 2 {
-    t.Fatal("RangeTags len should be 2 but is ", rD.RangeTags)
-  }
-  if rD.SimpleTags[1].Tag != "sT2" {
-    t.Error("Expect sT2 is ", rD.SimpleTags[2])
-  }
-  if rD.ValueTags[1].Tag != "vT2" {
-    t.Error("Expect vT2 is ", rD.ValueTags[2])
-  }
-  if rD.RangeTags[1].Tag != "rT2" {
-    t.Error("Expect rT2 is ", rD.RangeTags[2])
-  }
-
-}
-
 func Test_UserAuth_OK(t *testing.T) {
   os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
   os.Setenv("BEBBER_DB_NAME", "bebber_test")
@@ -459,31 +393,6 @@ func Test_DocMakeHandler_AlreadyExistsFail(t *testing.T) {
   }
 }
 
-// Try to make a doc send crazy request 
-func Test_DocMakeHandler_CrazyFail(t *testing.T) {
-  globals := MakeTestGlobals(t)
-  defer globals.MongoDB.Session.Close()
-  defer globals.MongoDB.Session.Copy().DB(TestDBName).DropDatabase()
-
-  handler := gin.New()
-  handler.POST("/Doc", MakeGlobalsHandler(DocMakeHandler, globals))
-  testDate := time.Date(2015,1,1,0,0,0,0,time.UTC)
-  dateStr := testDate.Format(time.RFC3339Nano)
-  fmt.Println(dateStr)
-  request := TestRequest{
-                Body: `{"Name": "chunk", "Infos": {"DateOfReceipt": "`+ dateStr +`", "DateOfScan": "`+ dateStr +`"}, "Fail": "yes!"}`,
-                Header: http.Header{},
-                Handler: handler,
-              }
-
-  response := request.Send("POST", "/Doc")
-
-  failMsg := "Missing a name!"
-  if strings.Contains(response.Body.String(), failMsg) == false {
-    t.Fatal("Expect Msg", failMsg, "was", response)
-  }
-}
-
 // Try to make a doc without a doc name 
 func Test_DocMakeHandler_WithoutNameFail(t *testing.T) {
   globals := MakeTestGlobals(t)
@@ -689,4 +598,93 @@ func Test_DocRemoveHandler_OK(t *testing.T) {
     t.Fatal("Expect file", tmpFilePath, "to be delete")
   }
 
+}
+
+// Append labels to a existing list of labels
+func Test_DocAppendLabelsHandler_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  docTmp := Doc{
+              Name: "Hoocker",
+              Labels: []Label{"label1"},
+            }
+  docsColl := db.C(DocsColl)
+  err := docsColl.Insert(docTmp)
+
+  handler := gin.New()
+  handler.PATCH("/Doc/Labels",
+                MakeGlobalsHandler(DocAppendLabelsHandler, globals))
+  appendLabelsRequest := `{"Name": "Hoocker", "Labels":["label2", "label3"]}`
+  request := TestRequest{
+                Body: appendLabelsRequest,
+                Header: http.Header{},
+                Handler: handler,
+              }
+
+  response := request.Send("PATCH", "/Doc/Labels")
+
+  if strings.Contains(response.Body.String(), "success") == false {
+    t.Fatal("Expect success response was", response)
+  }
+
+  doc := Doc{Name: "Hoocker"}
+  err = doc.Find(db)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if len(doc.Labels) != 3 {
+    t.Fatal("Expect 3 labels was", doc.Labels)
+  }
+}
+
+// Remove labels
+func Test_DocRemoveLabelsHandler_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  docTmp := Doc{
+              Name: "Hoocker",
+              Labels: []Label{"l1", "l2", "l3"},
+            }
+  docsColl := db.C(DocsColl)
+  err := docsColl.Insert(docTmp)
+
+  handler := gin.New()
+  handler.DELETE("/Doc/Labels",
+                MakeGlobalsHandler(DocRemoveLabelsHandler, globals))
+  appendLabelsRequest := `{"Name": "Hoocker", "Labels":["l2", "l3"]}`
+  request := TestRequest{
+                Body: appendLabelsRequest,
+                Header: http.Header{},
+                Handler: handler,
+              }
+
+  response := request.Send("DELETE", "/Doc/Labels")
+
+  if strings.Contains(response.Body.String(), "success") == false {
+    t.Fatal("Expect success response was", response)
+  }
+
+  doc := Doc{Name: "Hoocker"}
+  err = doc.Find(db)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if len(doc.Labels) != 1 {
+    t.Fatal("Expect 1 labels was", doc.Labels)
+  }
+  if doc.Labels[0] != "l1" {
+    t.Fatal("Expect l1 was", doc.Labels[0])
+  }
 }

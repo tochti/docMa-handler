@@ -25,6 +25,16 @@ type MongoDBSuccessResponse struct {
   DocID string
 }
 
+type DocAppendLabelsRequest struct {
+  Name string
+  Labels []Label
+}
+
+type DocRemoveLabelsRequest struct {
+  Name string
+  Labels []Label
+}
+
 type SuccessResponse struct {
   Status string
 }

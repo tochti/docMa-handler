@@ -759,3 +759,78 @@ func Test_RemoveDoc_OK(t *testing.T) {
   }
 
 }
+
+func Test_AppendLabels_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  docTmp := Doc{
+              Name: "Hoocker",
+              Labels: []Label{"label1"},
+            }
+  docsColl := db.C(DocsColl)
+  err := docsColl.Insert(docTmp)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  labels := []Label{Label("l2"), Label("l3")}
+  docTmp.AppendLabels(labels, db)
+
+  doc := Doc{Name: "Hoocker"}
+  err = doc.Find(db)
+  if err != nil {
+    t.Fatal(err)
+  }
+
+  if len(doc.Labels) != 3 {
+    t.Fatal("Expect 3 labels was", doc.Labels)
+  }
+  if len(docTmp.Labels) != 3 {
+    t.Fatal("Expect 3 labels was", doc.Labels)
+  }
+}
+
+func Test_RemoveLabels_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  docTmp := Doc{
+              Name: "Hoocker",
+              Labels: []Label{"l1", "l2", "l3"},
+            }
+  docsColl := db.C(DocsColl)
+  err := docsColl.Insert(docTmp)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  labels := []Label{"l2", "l3"}
+  docTmp.RemoveLabels(labels, db)
+
+  doc := Doc{Name: "Hoocker"}
+  err = doc.Find(db)
+  if err != nil {
+    t.Fatal(err)
+  }
+
+  if len(doc.Labels) != 1 {
+    t.Fatal("Expect 3 labels was", doc.Labels)
+  }
+  if len(docTmp.Labels) != 1 {
+    t.Fatal("Expect 3 labels was", doc.Labels)
+  }
+
+  if docTmp.Labels[0] != "l1" {
+    t.Fatal("Expect l1 was", docTmp.Labels[0])
+  }
+}
+

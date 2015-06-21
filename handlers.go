@@ -385,3 +385,49 @@ func DocRemoveHandler(c *gin.Context, g Globals) {
 
   c.JSON(http.StatusOK, SuccessResponse{"success"})
 }
+
+func DocAppendLabelsHandler(c *gin.Context, g Globals) {
+  appendRequest := DocAppendLabelsRequest{}
+  err := ParseJSONRequest(c, &appendRequest)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(g.Config["MONGODB_DBNAME"])
+
+  doc := Doc{Name: appendRequest.Name}
+  err = doc.AppendLabels(appendRequest.Labels, db)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  c.JSON(http.StatusOK, SuccessResponse{"success"})
+}
+
+func DocRemoveLabelsHandler(c *gin.Context, g Globals) {
+  appendRequest := DocRemoveLabelsRequest{}
+  err := ParseJSONRequest(c, &appendRequest)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(g.Config["MONGODB_DBNAME"])
+
+  doc := Doc{Name: appendRequest.Name}
+  err = doc.RemoveLabels(appendRequest.Labels, db)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  c.JSON(http.StatusOK, SuccessResponse{"success"})
+}
