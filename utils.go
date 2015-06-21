@@ -690,17 +690,35 @@ func (d *Doc) Change(changeDoc Doc, db *mgo.Database) error {
       return errors.New("Not allowed to change infos!")
   }
 
-  err := docsColl.Update(bson.M{"name": doc.Name}, changeDoc)
+  setMap := bson.M{}
+  if changeDoc.Name != "" {
+    setMap["name"] = changeDoc.Name
+  }
+  if changeDoc.Barcode != "" {
+    setMap["barcode"] = changeDoc.Barcode
+  }
+  if changeDoc.Note != "" {
+    setMap["note"] = changeDoc.Note
+  }
+  if changeDoc.AccountData.IsEmpty() == false {
+    setMap["accountdata"] = changeDoc.AccountData
+  }
+  if len(changeDoc.Labels) != 0 {
+    setMap["labels"] = changeDoc.Labels
+  }
+  cD := bson.M{"$set": setMap}
+
+  change := mgo.Change{
+              Update: cD,
+              ReturnNew: true,
+            }
+  returnDoc := Doc{}
+  _, err := docsColl.Find(bson.M{"name": doc.Name}).Apply(change, &returnDoc)
   if err != nil {
     return err
   }
 
-  doc.Barcode = changeDoc.Barcode
-  doc.AccountData = changeDoc.AccountData
-  doc.Note = changeDoc.Note
-  doc.Labels = changeDoc.Labels
-
-  *d = doc
+  *d = returnDoc
 
   return nil
 }

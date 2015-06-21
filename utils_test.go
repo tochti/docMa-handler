@@ -643,7 +643,7 @@ func Test_ChangeDoc_OK(t *testing.T) {
   db := session.DB(TestDBName)
   defer db.DropDatabase()
 
-  doc := Doc{Name: "changeme", Infos: DocInfos{}}
+  doc := Doc{Name: "changeme", Infos: DocInfos{}, Note: "note"}
 
   docsColl := db.C(DocsColl)
   err := docsColl.Insert(doc)
@@ -651,16 +651,32 @@ func Test_ChangeDoc_OK(t *testing.T) {
     t.Fatal(err.Error())
   }
 
-  changeDocRequest := Doc{Name: "changeme", Barcode: "barcode"}
-  err = doc.Change(changeDocRequest, db)
+  accountData := DocAccountData{PostingText: "post-it"}
+  labels := []Label{"label1"}
+  changeDoc := Doc{Name: "nicer", Barcode: "barcode",
+                   AccountData: accountData, Labels: labels}
+  err = doc.Change(changeDoc, db)
   if err != nil {
     t.Fatal(err.Error())
   }
 
-  docUpdated := Doc{Name: "changeme"}
+  failDoc := Doc{Name: "changeme"}
+  err = failDoc.Find(db)
+  if err == nil {
+    t.Fatal("Expect Cannot find document error was nil")
+  }
+  if strings.Contains(err.Error(), "Cannot find document") == false{
+    t.Fatal("Expect Cannot find document error was", err.Error())
+  }
+
+  docUpdated := Doc{Name: "nicer"}
   err = docUpdated.Find(db)
   if err != nil {
     t.Fatal(err.Error())
+  }
+
+  if doc.Name != "nicer" {
+    t.Fatal("Expect nicer was", doc.Name)
   }
 
   if doc.Barcode != "barcode" {
@@ -669,6 +685,18 @@ func Test_ChangeDoc_OK(t *testing.T) {
 
   if docUpdated.Barcode != "barcode" {
     t.Fatal("Expect barcode was", docUpdated.Barcode)
+  }
+
+  if docUpdated.Note != "note" {
+    t.Fatal("Expect note was", docUpdated.Note)
+  }
+
+  if docUpdated.AccountData.PostingText != "post-it" {
+    t.Fatal("Expect post-it was", docUpdated.AccountData.PostingText)
+  }
+
+  if docUpdated.Labels[0] != "label1" {
+    t.Fatal("Expect label1 was", docUpdated.Labels[0])
   }
 }
 
@@ -691,8 +719,8 @@ func Test_ChangeDoc_InfoFail(t *testing.T) {
   docInfos := DocInfos{
               DateOfScan: time.Now(),
             }
-  changeDocRequest := Doc{Name: "changeme", Infos: docInfos}
-  err = doc.Change(changeDocRequest, db)
+  changeDoc := Doc{Name: "changeme", Infos: docInfos}
+  err = doc.Change(changeDoc, db)
   if err == nil {
     t.Fatal("Expect Not allowed to change infos error was nil")
   }

@@ -546,28 +546,17 @@ func Test_DocChangeHandler_OK(t *testing.T) {
   docsColl := db.C(DocsColl)
 
   docID := bson.NewObjectId()
-  docTmp := Doc{ID: docID, Name: "Touchme.txt"}
+  docTmp := Doc{ID: docID, Name: "Touchme.txt", Barcode: "Codey", Note: "Nutty"}
   err := docsColl.Insert(docTmp)
-  if err != nil {
-    t.Fatal(err.Error())
-  }
-
-  changeRequest := DocChangeRequest{
-                    Name: "Touchme.txt",
-                    Barcode: "Touchme",
-                    Labels: []Label{Label("oohh"), Label("aahh")},
-                    Note: "Don't stop!",
-                    AccountData: DocAccountData{DocNumber: "VIP"},
-                  }
-  changeRequestJSON, err := json.Marshal(changeRequest)
   if err != nil {
     t.Fatal(err.Error())
   }
 
   handler := gin.New()
   handler.PATCH("/Doc", MakeGlobalsHandler(DocChangeHandler, globals))
+  changeRequest := `{"Name": "Touchme.txt", "Labels": ["label1"], "AccountData":{"PostingText": "post-it"}}`
   request := TestRequest{
-                Body: string(changeRequestJSON),
+                Body: changeRequest,
                 Header: http.Header{},
                 Handler: handler,
               }
@@ -590,14 +579,21 @@ func Test_DocChangeHandler_OK(t *testing.T) {
     t.Fatal(err.Error())
   }
 
-  changeRequest.ID = docID
-  changeRequestJSON, err = json.Marshal(changeRequest)
+  expectDoc := Doc{
+                ID: docID,
+                Name: "Touchme.txt",
+                Barcode: "Codey",
+                Note: "Nutty",
+                AccountData: DocAccountData{PostingText: "post-it"},
+                Labels: []Label{"label1"},
+              }
+  expectDocJSON, err := json.Marshal(expectDoc)
   if err != nil {
     t.Fatal(err.Error())
   }
 
-  if string(changeRequestJSON) != string(docJSON) {
-    t.Fatal("Expect", string(changeRequestJSON), "was", string(docJSON))
+  if string(expectDocJSON) != string(docJSON) {
+    t.Fatal("Expect", string(expectDocJSON), "was", string(docJSON))
   }
 }
 
