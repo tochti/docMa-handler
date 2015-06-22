@@ -15,14 +15,14 @@ import (
 )
 
 
-func TestGetSettings(t *testing.T) {
+func Test_GetSettings(t *testing.T) {
   os.Setenv("TEST_ENV", "TEST_VALUE")
   if GetSettings("TEST_ENV") != "TEST_VALUE" {
     t.Error("TEST_ENV is missing!")
   }
 }
 
-func TestSubListOK(t *testing.T) {
+func Test_SubListOK(t *testing.T) {
   a := []string{"1", "2", "3"}
   b := []string{"2", "3"}
 
@@ -36,7 +36,7 @@ func TestSubListOK(t *testing.T) {
 
 }
 
-func TestSubListEmpty(t *testing.T) {
+func Test_SubListEmpty(t *testing.T) {
   a := []string{}
   b := []string{}
 
@@ -46,7 +46,7 @@ func TestSubListEmpty(t *testing.T) {
   }
 }
 
-func TestReadAccData(t *testing.T) {
+func Test_ReadAccData(t *testing.T) {
   csvFile := path.Join(testDir, "export.csv")
   result := []AccData{}
   err := ReadAccFile(csvFile, &result)
@@ -79,7 +79,7 @@ func TestReadAccData(t *testing.T) {
 
 }
 
-func TestParseAccInt(t *testing.T) {
+func Test_ParseAccInt(t *testing.T) {
   r, err := ParseAccInt("")
   if err != nil {
     t.Fatal(err.Error())
@@ -97,7 +97,7 @@ func TestParseAccInt(t *testing.T) {
   }
 }
 
-func TestParseGermanDate(t *testing.T) {
+func Test_ParseGermanDate(t *testing.T) {
   d := time.Date(1999, time.January, 1, 0, 0, 0, 0, time.UTC)
   result, err := ParseGermanDate("01.01.1999", ".")
   if err != nil {
@@ -108,7 +108,7 @@ func TestParseGermanDate(t *testing.T) {
   }
 }
 
-func TestMonth(t *testing.T) {
+func Test_Month(t *testing.T) {
   m, _ := Month(1)
   if m != time.January {
     t.Error("Expect ", time.January ," was ", m)
@@ -120,177 +120,14 @@ func TestMonth(t *testing.T) {
   }
 }
 
-func TestZeroDate(t *testing.T) {
+func Test_ZeroDate(t *testing.T) {
   z := GetZeroDate()
   if z.IsZero() != true {
     t.Error("Expect zero date was ", z)
   }
 }
 
-func TestSpotTagType(t *testing.T) {
-  ty, err := SpotTagType("test")
-  if ty != "SimpleTag" {
-    t.Error("Should be SimpleTag is ", ty)
-  }
-  if err != nil {
-    t.Error("Error should be empty is ", err.Error())
-  }
-
-  ty, err = SpotTagType("test:")
-  if ty != "" {
-    t.Error("Should be an wrong tag is ", ty)
-  }
-  if err == nil {
-    t.Error("Error should be (Missing value) but is nil")
-  }
-
-  ty, err = SpotTagType("test:1234")
-  if ty != "ValueTag" {
-    t.Error("Should be a ValueTag is ", ty)
-  }
-  if err != nil {
-    t.Error("Error should be empty is ", err.Error())
-  }
-
-  ty, err = SpotTagType("test:\"hallo hallo\"")
-  if ty != "ValueTag" {
-    t.Error("Should be a ValueTag is ", ty)
-  }
-  if err != nil {
-    t.Error("Error should be empty is ", err.Error())
-  }
-
-  ty, err = SpotTagType("test:er:li")
-  if ty != "ValueTag" {
-    t.Error("Should be a ValueTag is ", ty)
-  }
-  if err != nil {
-    t.Error("Error should be empty is ", err.Error())
-  }
-
-  ty, err = SpotTagType("test:01012014..02022014")
-  if ty != "RangeTag" {
-    t.Error("Should be a RangeTag is ", ty)
-  }
-  if err != nil {
-    t.Error("Error should be empty is ", err.Error())
-  }
-
-  ty, err = SpotTagType("test:1102014..02022104")
-  if ty != "RangeTag" {
-    t.Error("Should be RangeTag is ", ty)
-  }
-  if err.Error() != "Error in range" {
-    t.Error("Error msg should be (Error in range) is ", err.Error())
-  }
-
-  ty, err = SpotTagType("test:1102014..02022104")
-  if ty != "RangeTag" {
-    t.Error("Should be RangeTag is ", ty)
-  }
-  if err.Error() != "Error in range" {
-    t.Error("Error msg should be (Error in range) is ", err.Error())
-  }
-
-  ty, err = SpotTagType("test:1102014..2022104")
-  if ty != "RangeTag" {
-    t.Error("Should be RangeTag is ", ty)
-  }
-  if err.Error() != "Error in range" {
-    t.Error("Error msg should be (Error in range) is ", err.Error())
-  }
-
-  ty, err = SpotTagType("test:..02022015")
-  if ty != "RangeTag" {
-    t.Error("Should be RangeTag is ", ty)
-  }
-  if err != nil {
-    t.Error("No error should occur ", err.Error())
-  }
-
-  ty, err = SpotTagType("test:02022015..")
-  if ty != "RangeTag" {
-    t.Error("Should be RangeTag is ", ty)
-  }
-  if err != nil {
-    t.Error("No error should occur ", err.Error())
-  }
-
-}
-
-func TestCreateUpdateDocSimpleTag(t *testing.T) {
-  doc := FileDoc{Filename: "test.txt"}
-  err := CreateUpdateDoc([]string{}, &doc)
-  if err != nil {
-    t.Error(err.Error())
-  }
-  if doc.Filename != "test.txt" {
-    t.Error("#1 wrong filename (", doc.Filename, ")")
-  }
-  if len(doc.SimpleTags) != 0 {
-    t.Error("expect [] is ", doc.SimpleTags)
-  }
-
-  doc = FileDoc{
-          Filename: "test.txt",
-          SimpleTags: []SimpleTag{SimpleTag{"sTag"}},
-        }
-  err = CreateUpdateDoc([]string{"sTag1", "sTag2"}, &doc)
-  if err != nil {
-    t.Error(err.Error())
-  }
-  if doc.Filename != "test.txt" {
-    t.Error("#2 wrong filename (", doc.Filename, ")")
-  }
-  if len(doc.SimpleTags) != 3 {
-    t.Fatal("Expect 3 SimpleTags got ", len(doc.SimpleTags))
-  }
-  if doc.SimpleTags[0].Tag != "sTag" || doc.SimpleTags[1].Tag != "sTag1" || doc.SimpleTags[2].Tag != "sTag2" {
-    t.Error("wrong tags ", doc.SimpleTags)
-  }
-}
-
-func TestCreateUpdateValueTag(t *testing.T) {
-  tags := []string{"vTag1:1234", "vTag2:\"foo bar\"", "vTag3:va:lue"}
-  doc := FileDoc{Filename: "test.txt"}
-  err := CreateUpdateDoc(tags, &doc)
-  if err != nil {
-    t.Error(err.Error())
-  }
-  if doc.Filename != "test.txt" {
-    t.Error("wrong filename (", doc.Filename, ")")
-  }
-
-  if doc.ValueTags[0].Tag != "vTag1" || doc.ValueTags[0].Value != "1234" {
-    t.Error("wrong value tag #1 ", doc.ValueTags[0])
-  }
-  if doc.ValueTags[1].Tag != "vTag2" || doc.ValueTags[1].Value != "foo bar" {
-    t.Error("wrong value tag #2 ", doc.ValueTags[1])
-  }
-  if doc.ValueTags[2].Tag != "vTag3" || doc.ValueTags[2].Value != "va:lue" {
-    t.Error("wrong value tag #3 ", doc.ValueTags[2])
-  }
-}
-
-func TestCreateUpdateRangeTag(t *testing.T) {
-  tags := []string{"rT1:01042014..02042014", "rt2:..02042014", "rt3:01042014.."}
-  doc := FileDoc{Filename: "test.txt"}
-  err := CreateUpdateDoc(tags, &doc)
-  if err != nil {
-    t.Fatal(err.Error())
-  }
-  if doc.Filename != "test.txt" {
-    t.Error("wrong filename (", doc.Filename, ")")
-  }
-
-  sD := time.Date(2014, time.April, 1, 0, 0, 0, 0, time.UTC)
-  eD := time.Date(2014, time.April, 2, 0, 0, 0, 0, time.UTC)
-  if doc.RangeTags[0].Tag != "rT1" || doc.RangeTags[0].Start != sD || doc.RangeTags[0].End != eD {
-    t.Error("wrong range tag ", doc.RangeTags[0])
-  }
-}
-
-func TestJoinAccFile(t *testing.T) {
+func Test_JoinAccFile(t *testing.T) {
   /* setup */
   // Invoices
   invo1 := AccData{
@@ -351,12 +188,12 @@ func TestJoinAccFile(t *testing.T) {
     t.Fatal(err.Error())
   }
   defer session.Close()
-  err = session.DB("bebber_test").DropDatabase()
+  err = session.DB(TestDBName).DropDatabase()
   if err != nil {
     t.Fatal(err.Error())
   }
 
-  c := session.DB("bebber_test").C("files")
+  c := session.DB(TestDBName).C("files")
 
   f1 := FileDoc{
     Filename: "i1.pdf",
@@ -438,7 +275,7 @@ func TestJoinAccFile(t *testing.T) {
 
 }
 
-func TestFileDocsMethods(t *testing.T) {
+func Test_FileDocsMethods(t *testing.T) {
   sT := time.Date(2014, time.April, 1, 0, 0, 0, 0, time.UTC)
   eT := time.Date(2014, time.April, 2, 0, 0, 0, 0, time.UTC)
   doc1 := FileDoc{
@@ -500,7 +337,7 @@ func TestFileDocsMethods(t *testing.T) {
   }
 }
 
-func TestEmptyAccData(t *testing.T) {
+func Test_EmptyAccData(t *testing.T) {
   ad := AccData{}
   if ad.Empty() == false {
     t.Fatal("Expect true was false")
@@ -512,7 +349,7 @@ func TestEmptyAccData(t *testing.T) {
   }
 }
 
-func TestLoadUserOk(t *testing.T) {
+func Test_ReadUser_OK(t *testing.T) {
   session, err := mgo.Dial("127.0.0.1")
   if err != nil {
     t.Fatal(err.Error())
@@ -521,8 +358,8 @@ func TestLoadUserOk(t *testing.T) {
 
   userTmp := User{Username: "XXX", Password: ""}
   userExpect := User{Username: "Haschel", Password: ""}
-  db := session.DB("bebber_test")
-  col := db.C(UsersCollection)
+  db := session.DB(TestDBName)
+  col := db.C(UsersColl)
   defer db.DropDatabase()
 
   err = col.Insert(userExpect, userTmp)
@@ -531,7 +368,7 @@ func TestLoadUserOk(t *testing.T) {
   }
 
   user := User{}
-  err = user.Load("Haschel", col)
+  err = user.Read("Haschel", db)
 
   if (userExpect.Username != user.Username) && (err == nil) {
     t.Fatal("Expect,", userExpect, "was,", user)
@@ -539,15 +376,18 @@ func TestLoadUserOk(t *testing.T) {
 
 }
 
-func TestLoadUserFail(t *testing.T) {
+func Test_ReadUser_Fail(t *testing.T) {
   session, err := mgo.Dial("127.0.0.1")
   if err != nil {
     t.Fatal(err.Error())
   }
   defer session.Close()
-  col := session.DB("bebber_test").C(UsersCollection)
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
   user := User{}
-  err = user.Load("Haschel", col)
+  err = user.Read("Haschel", db)
 
   if err.Error() != "Cannot find user Haschel" {
     t.Fatal("Expect 'Cannot found user Haschel' error was", err.Error())
@@ -555,20 +395,23 @@ func TestLoadUserFail(t *testing.T) {
 
 }
 
-func TestSaveUserOk(t *testing.T) {
+func Test_SaveUser_OK(t *testing.T) {
   session, err := mgo.Dial("127.0.0.1")
   if err != nil {
     t.Fatal(err.Error())
   }
   defer session.Close()
 
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
   sha1Pass := fmt.Sprintf("%x", sha1.Sum([]byte("tt")))
-  col := session.DB("bebber_test").C(UsersCollection)
   userExpect := User{Username: "test", Password: "tt"}
-  err = userExpect.Save(col)
+  err = userExpect.Save(db)
 
   user := User{}
-  err = col.Find(bson.M{"username": "test"}).One(&user)
+  usersColl := db.C(UsersColl)
+  err = usersColl.Find(bson.M{"username": "test"}).One(&user)
   if err != nil {
     t.Fatal(err.Error())
   }

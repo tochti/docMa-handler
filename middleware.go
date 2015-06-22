@@ -8,11 +8,6 @@ import (
   "gopkg.in/mgo.v2/bson"
 )
 
-const (
-  SessionsCollection = "sessions"
-  TokenHeaderField = "X-XSRF-TOKEN"
-)
-
 func Auth(c *gin.Context, g Globals) {
 
     token := c.Request.Header.Get(TokenHeaderField)
@@ -34,7 +29,7 @@ func Auth(c *gin.Context, g Globals) {
     session := g.MongoDB.Session.Copy()
     defer session.Close()
 
-    sessionsColl := session.DB(g.MongoDB.DBName).C(SessionsCollection)
+    sessionsColl := session.DB(g.MongoDB.DBName).C(SessionsColl)
     query := sessionsColl.Find(bson.M{"token": token})
     n, err := query.Count()
     if err != nil {

@@ -18,7 +18,7 @@ import (
   "github.com/gin-gonic/gin"
 )
 
-func TestLoadAccFile(t *testing.T) {
+func Test_LoadAccFile(t *testing.T) {
   /* setup */
   tmpDir, err := ioutil.TempDir(testDir, "accdata")
   defer os.RemoveAll(tmpDir)
@@ -60,12 +60,12 @@ func TestLoadAccFile(t *testing.T) {
     t.Fatal(err.Error())
   }
   defer session.Close()
-  err = session.DB("bebber_test").DropDatabase()
+  err = session.DB(TestDBName).DropDatabase()
   if err != nil {
     t.Fatal(err.Error())
   }
 
-  c := session.DB("bebber_test").C("files")
+  c := session.DB(TestDBName).C("files")
 
   f1 := FileDoc{
     Filename: "i1.pdf",
@@ -162,25 +162,27 @@ func TestLoadAccFile(t *testing.T) {
 
 }
 
-func Test_UserAuth_OK(t *testing.T) {
-  os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
-  os.Setenv("BEBBER_DB_NAME", "bebber_test")
-  session, err := mgo.Dial("127.0.0.1")
-  if err != nil {
-    t.Fatal(err)
-  }
+func Test_LoginHandler_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
   defer session.Close()
-  sha1Pass := fmt.Sprintf("%x", sha1.Sum([]byte("test")))
 
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  sha1Pass := fmt.Sprintf("%x", sha1.Sum([]byte("test")))
   user := bson.M{"username": "loveMaster_999", "password": sha1Pass}
-  usersC := session.DB("bebber_test").C("users")
-  usersC.Insert(user)
-  defer session.DB("bebber_test").DropDatabase()
+  usersColl := db.C(UsersColl)
+  usersColl.Insert(user)
 
   h := gin.New()
-  h.POST("/", Login)
-  body := bytes.NewBufferString(`{"Username":"loveMaster_999","Password":"test"}`)
-  resp := PerformRequest(h, "POST", "/", body)
+  h.POST("/", MakeGlobalsHandler(LoginHandler, globals))
+  request := TestRequest{
+                Body: `{"Username":"loveMaster_999","Password":"test"}`,
+                Header: http.Header{},
+                Handler: h,
+              }
+  resp := request.Send("POST", "/")
 
   if resp.Code != 200 {
     t.Fatal("Response code should be 200 was", resp.Code)
@@ -196,24 +198,27 @@ func Test_UserAuth_OK(t *testing.T) {
   }
 }
 
-func Test_UserAuth_Fail(t *testing.T) {
-  os.Setenv("BEBBER_DB_SERVER", "127.0.0.1")
-  os.Setenv("BEBBER_DB_NAME", "bebber_test")
-  session, err := mgo.Dial("127.0.0.1")
-  if err != nil {
-    t.Fatal(err)
-  }
+func Test_LoginHandler_Fail(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
   defer session.Close()
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
   sha1Pass := fmt.Sprintf("%x", sha1.Sum([]byte("test")))
   user := bson.M{"Username": "loveMaster_999", "Password": sha1Pass}
-  usersC := session.DB("bebber_test").C("users")
-  usersC.Insert(user)
-  defer session.DB("bebber_test").DropDatabase()
+  usersColl := db.C(UsersColl)
+  usersColl.Insert(user)
 
   h := gin.New()
-  h.POST("/", Login)
-  body := bytes.NewBufferString(`{"username":"loveMaster_999","password":"wrong"}`)
-  resp := PerformRequest(h, "POST", "/", body)
+  h.POST("/", MakeGlobalsHandler(LoginHandler, globals))
+  request := TestRequest{
+                Body: `{"username":"loveMaster_999","password":"wrong"}`,
+                Header: http.Header{},
+                Handler: h,
+              }
+
+  resp := request.Send("POST", "/")
 
   if resp.Code != 200 {
     t.Fatal("Response code should be 200 was", resp.Code)
@@ -237,7 +242,7 @@ func Test_UserHandler_OK(t *testing.T) {
   user := User{Username: "hitman", Password: sha1Pass}
   user1 := User{Username: "catwomen", Password: sha1Pass}
   user2 := User{Username: "loveMaster_999", Password: sha1Pass}
-  usersColl := db.C(UsersCollection)
+  usersColl := db.C(UsersColl)
   err := usersColl.Insert(user, user1, user2)
   if err != nil {
     t.Fatal(err.Error())
@@ -253,7 +258,7 @@ func Test_UserHandler_OK(t *testing.T) {
   response := request.Send("GET", "/hitman")
 
   expect := `{"Username":"hitman","Password":""}`
-  if strings.Contains(response.Body.String(), expect) {
+  if strings.Contains(response.Body.String(), expect) == false {
     t.Fatal("Expect", expect, "was", response.Body.String())
   }
 

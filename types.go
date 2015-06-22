@@ -7,8 +7,10 @@ import (
 
 const (
   DocsColl = "Docs"
-  UsersCollection = "Users"
+  UsersColl= "Users"
+  SessionsColl = "Sessions"
   XSRFCookieName = "XSRF-TOKEN"
+  TokenHeaderField = "X-XSRF-TOKEN"
 )
 
 type Label string

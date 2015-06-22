@@ -14,10 +14,10 @@ func Test_VerifyAuth_OK(t *testing.T) {
   defer globals.MongoDB.Session.Close()
   defer db.DropDatabase()
 
-  sessionsC := db.C(SessionsCollection)
+  sessionsColl := db.C(SessionsColl)
   expires := time.Now().AddDate(0,0,1)
   expectSession := UserSession{Token: "123", User: "loveMaster_999", Expires: expires}
-  sessionsC.Insert(expectSession)
+  sessionsColl.Insert(expectSession)
 
   h := gin.New()
   afterAuth := func (c *gin.Context) {
@@ -56,7 +56,7 @@ func Test_VerifyAuth_Fail(t *testing.T) {
   db := globals.MongoDB.Session.DB(TestDBName)
   defer db.DropDatabase()
 
-  sessionsColl := db.C(SessionsCollection)
+  sessionsColl := db.C(SessionsColl)
   expires := time.Now()
   sessionsColl.Insert(UserSession{Token: "12", User: "loveMaster_999", Expires: expires})
 
@@ -82,9 +82,9 @@ func Test_VerifyAuth_ExpiresFail(t *testing.T) {
   db := globals.MongoDB.Session.DB(TestDBName)
   defer db.DropDatabase()
 
-  sessionsC := db.C(SessionsCollection)
+  sessionsColl := db.C(SessionsColl)
   expires := time.Now().AddDate(0,0,-1)
-  sessionsC.Insert(UserSession{Token: "123", User: "loveMaster_999", Expires: expires})
+  sessionsColl.Insert(UserSession{Token: "123", User: "loveMaster_999", Expires: expires})
 
   h := gin.New()
   auth := MakeGlobalsHandler(Auth, globals)

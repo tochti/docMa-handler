@@ -124,91 +124,6 @@ func SubList(a, b []string) []string {
   return res
 }
 
-func SpotTagType(tag string) (string, error) {
-  if strings.Contains(tag, TagKeyValueSep) == false{
-    return "SimpleTag", nil
-  }
-
-  if strings.Index(tag, TagKeyValueSep)+1 == len(tag) {
-    return "", errors.New("Missing Value")
-  }
-
-  tmp := strings.Split(tag, TagKeyValueSep)
-  value := strings.Join(tmp[1:], TagKeyValueSep)
-
-  if strings.Contains(value, RangeSep) {
-    tmp := strings.SplitAfter(value, RangeSep)
-    // If ..EndDate
-    if tmp[0] == RangeSep {
-      if len(tmp[1]) == 8 {
-        return "RangeTag", nil
-      } else {
-        return "RangeTag", errors.New("Error in range")
-      }
-    }
-    // If StartDate..
-    if tmp[1] == "" {
-      if len(tmp[0]) == (8 + len(RangeSep)) {
-        return "RangeTag", nil
-      } else {
-        return "RangeTag", errors.New("Error in range")
-      }
-    }
-
-    sDate := strings.Replace(tmp[0], RangeSep, "", 1)
-    eDate := tmp[1]
-    if len(sDate) != 8 || len(eDate) != 8 {
-      return "RangeTag", errors.New("Error in range")
-    }
-    return "RangeTag", nil
-  } else {
-    return "ValueTag", nil
-  }
-
-}
-
-func ParseValueTag(tag string) ValueTag {
-  tmp := strings.Split(tag, TagKeyValueSep)
-  key := tmp[0]
-  value := strings.Join(tmp[1:], TagKeyValueSep)
-  if value[0] == '"' && value[len(value)-1] == '"' {
-    value = value[1:len(value)-1]
-  }
-  return ValueTag{key, value}
-}
-
-func ParseRangeTag(tag string) (*RangeTag, error) {
-  tmp := strings.Split(tag, TagKeyValueSep)
-  key := tmp[0]
-  val := strings.SplitAfter(tmp[1], RangeSep)
-
-  var sDate time.Time
-  var eDate time.Time
-  var err error
-  if val[0] == RangeSep {
-    eDate, err = ParseDate(val[1])
-    if err != nil {
-      return nil, err
-    }
-  } else if val[1] == "" {
-    sDate, err = ParseDate(strings.Replace(val[0], RangeSep, "", 1))
-    if err != nil {
-      return nil, err
-    }
-  } else {
-    sDate, err = ParseDate(strings.Replace(val[0], RangeSep, "", 1))
-    if err != nil {
-      return nil, err
-    }
-    eDate, err = ParseDate(val[1])
-    if err != nil {
-      return nil, err
-    }
-  }
-
-  return &RangeTag{Tag: key, Start: sDate, End: eDate}, nil
-}
-
 func ParseDate(d string) (time.Time, error) {
     year, err := strconv.ParseInt(d[4:8], 10, 0)
     month, err := strconv.ParseInt(d[2:4], 10, 0)
@@ -620,9 +535,10 @@ func DateToString(t time.Time) (string) {
   return date
 }
 
-func (user *User) Load(username string, collection *mgo.Collection) error {
+func (user *User) Read(username string, db *mgo.Database) error {
   u := *user
-  query := collection.Find(bson.M{"username": username})
+  usersColl := db.C(UsersColl)
+  query := usersColl.Find(bson.M{"username": username})
 
   n, err := query.Count()
   if err != nil {
@@ -639,19 +555,18 @@ func (user *User) Load(username string, collection *mgo.Collection) error {
   }
   *user = u
   return nil
-
 }
 
-func (user *User) Save(col *mgo.Collection) error {
+func (user *User) Save(db *mgo.Database) error {
   u := *user
   u.Password = fmt.Sprintf("%x", sha1.Sum([]byte("tt")))
-  err := col.Insert(u)
+  usersColl := db.C(UsersColl)
+  err := usersColl.Insert(u)
   if err != nil {
     return err
   }
 
   return nil
-
 }
 
 func (d *Doc) Find(db *mgo.Database) error {

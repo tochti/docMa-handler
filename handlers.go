@@ -6,7 +6,6 @@ import (
   "time"
   "path"
   "bytes"
-  "errors"
   "strings"
   "strconv"
   "net/http"
@@ -43,110 +42,10 @@ type LoadAccFilesResponse struct {
   AccFiles []AccFile
 }
 
-func LoadFile(c *gin.Context) {
+func ReadFileHandler(c *gin.Context, g Globals) {
   filename := strings.Trim(c.Params.ByName("filename"), "\"")
-
-  session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
-  if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
-  }
-  defer session.Close()
-  db := session.DB(GetSettings("BEBBER_DB_NAME"))
-
-  usTmp, err := c.Get("session")
-  userSession := usTmp.(UserSession)
-  if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
-    return
-  }
-  user := User{}
-  err = user.Load(userSession.User, db.C(UsersCollection))
-  if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
-  }
-
-  boxpath := GetSettings("BEBBER_FILES")
-  filepath := path.Join(boxpath, filename)
+  filepath := path.Join(g.Config["FILES_PATH"], filename)
   c.File(filepath)
-}
-
-func AddTags(c *gin.Context) {
-  jsonReq := AddTagsRequest{}
-  err := ParseJSONRequest(c, &jsonReq)
-  if err != nil {
-    errMsg := "Couldn't parse request - "+ err.Error()
-    res := ErrorResponse{"fail", errMsg}
-    c.JSON(http.StatusOK, res)
-    return
-  }
-
-  if jsonReq.Filename == "" {
-    res := ErrorResponse{"fail", "No Filename"}
-    c.JSON(http.StatusOK, res)
-    return
-  }
-
-  session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
-  collection := session.DB(GetSettings("BEBBER_DB_NAME")).C(FilesCollection)
-
-  updateDoc := FileDoc{Filename: jsonReq.Filename}
-  err = collection.Find(bson.M{"filename": jsonReq.Filename}).One(&updateDoc)
-  if err != nil  && err.Error() != "not found" {
-    errMsg := "Db error - "+ err.Error()
-    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
-    return
-  }
-
-  err = CreateUpdateDoc(jsonReq.Tags, &updateDoc)
-  if err != nil {
-    errMsg := "Cannot update file "+ jsonReq.Filename +" - "+ err.Error()
-    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
-    return
-  }
-  newDoc := FileDoc{}
-  change := mgo.Change{
-              Update: updateDoc,
-              Upsert: true,
-              ReturnNew: true,
-            }
-  info, err := collection.Find(bson.M{"filename": jsonReq.Filename}).
-                          Apply(change, &newDoc)
-  if err != nil {
-    errMsg := "Cannot update file "+ jsonReq.Filename +" - "+ err.Error()
-    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
-    return
-  }
-
-  if info.Updated != 1 && info.UpsertedId == nil {
-    errMsg := "Expected to update 1 document, was "+ string(info.Updated)
-    c.JSON(http.StatusOK, ErrorResponse{"fail", errMsg})
-    return
-  }
-
-  c.JSON(http.StatusOK, SuccessResponse{})
-}
-
-func CreateUpdateDoc(tags []string, doc *FileDoc) error {
-  for _, tag := range tags {
-    typ, err := SpotTagType(tag)
-    if err != nil {
-      return errors.New(err.Error())
-    }
-    switch typ {
-    case "SimpleTag":
-      doc.SimpleTags = append(doc.SimpleTags, SimpleTag{tag})
-    case "ValueTag":
-      doc.ValueTags = append(doc.ValueTags, ParseValueTag(tag))
-    case "RangeTag":
-      tags, err := ParseRangeTag(tag)
-      if err != nil {
-        return err
-      }
-      doc.RangeTags = append(doc.RangeTags, *tags)
-    }
-  }
-
-  return nil
 }
 
 func LoadAccFiles(c *gin.Context) {
@@ -186,26 +85,22 @@ func LoadAccFiles(c *gin.Context) {
   c.JSON(http.StatusOK, res)
 }
 
-func Login(c *gin.Context) {
+func LoginHandler(c *gin.Context, g Globals) {
   loginData := LoginData{}
   err := ParseJSONRequest(c, &loginData)
   if err != nil {
     c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
     return
   }
-
-  session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
-  if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
-    return
-  }
-  db := session.DB(GetSettings("BEBBER_DB_NAME"))
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+  db := session.DB(g.Config["MONGODB_DBNAME"])
 
   seed := rand.New(rand.NewSource(time.Now().UnixNano()))
   sha1Pass := fmt.Sprintf("%x", sha1.Sum([]byte(loginData.Password)))
 
-  usersC := db.C(UsersCollection)
-  users := usersC.Find(bson.M{"username": loginData.Username,
+  usersColl := db.C(UsersColl)
+  users := usersColl.Find(bson.M{"username": loginData.Username,
                      "password": sha1Pass})
   n, err := users.Count()
   if err != nil {
@@ -221,10 +116,10 @@ func Login(c *gin.Context) {
   token := fmt.Sprintf("%x", sha1.Sum([]byte(tmp)))
   expires := time.Now().AddDate(0,0,2)
 
-  sessionsC := db.C(SessionsCollection)
+  sessionsColl := db.C(SessionsColl)
   userSession := UserSession{User: loginData.Username,
                              Token: token, Expires: expires}
-  err = sessionsC.Insert(userSession)
+  err = sessionsColl.Insert(userSession)
   if err != nil {
     c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
     return
@@ -243,7 +138,7 @@ func UserHandler(c *gin.Context, globals Globals) {
 
   db := session.DB(config["MONGODB_DBNAME"])
   username := c.Params.ByName("name")
-  usersColl := db.C(UsersCollection)
+  usersColl := db.C(UsersColl)
   users := usersColl.Find(bson.M{"username": username})
   n, err := users.Count()
   if err != nil {

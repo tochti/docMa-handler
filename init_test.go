@@ -65,7 +65,7 @@ func (t *TestRequest) Send(method, path string) *httptest.ResponseRecorder {
 }
 
 func MakeTestUserSession(user, token string, db *mgo.Database, t *testing.T) {
-  sessionsC := db.C(SessionsCollection)
+  sessionsC := db.C(SessionsColl)
   expires := time.Now().AddDate(0,0,1)
   userSession := UserSession{Token: token, User: user, Expires: expires}
   err = sessionsC.Insert(userSession)
