@@ -715,6 +715,7 @@ func (d *Doc) Change(changeDoc Doc, db *mgo.Database) error {
   returnDoc := Doc{}
   _, err := docsColl.Find(bson.M{"name": doc.Name}).Apply(change, &returnDoc)
   if err != nil {
+    fmt.Println(err.Error())
     return err
   }
 

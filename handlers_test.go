@@ -600,6 +600,69 @@ func Test_DocRemoveHandler_OK(t *testing.T) {
 
 }
 
+// Rename Doc
+func Test_DocRenameHandler_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  tmpDir, err := ioutil.TempDir(testDir, "rename")
+  defer os.RemoveAll(tmpDir)
+  globals.Config["FILES_DIR"] = tmpDir
+
+  tmpFile, err := ioutil.TempFile(tmpDir, "rename")
+  fileBase := path.Base(tmpFile.Name())
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+  docsColl := db.C(DocsColl)
+
+  docID := bson.NewObjectId()
+  expectDoc := Doc{ID: docID, Name: fileBase, Labels: []Label{}}
+
+  err = docsColl.Insert(expectDoc)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  handler := gin.New()
+  handler.PATCH("/Doc/Rename", MakeGlobalsHandler(DocRenameHandler, globals))
+
+  request := TestRequest{
+                Body: `{"Name":"`+ fileBase +`", "NewName":"Simple" }`,
+                Header: http.Header{},
+                Handler: handler,
+              }
+  response := request.Send("PATCH", "/Doc/Rename")
+
+  if strings.Contains(response.Body.String(), "success") == false {
+    t.Fatal("Expect successs response was", response)
+  }
+
+  err = expectDoc.Find(db)
+  if err == nil {
+    t.Fatal("Expect Cannot find document error was", err)
+  }
+  if strings.Contains(err.Error(), "Cannot find document") == false {
+    t.Fatal("Expect Cannot find document error was", err)
+  }
+
+  if _, err := os.Stat(tmpFile.Name()); os.IsNotExist(err) == false {
+    t.Fatal("Expect file", tmpFile.Name(), "to be delete")
+  }
+
+  newFilePath := path.Join(tmpDir, "Simple")
+  if _, err := os.Stat(newFilePath); os.IsNotExist(err) {
+    t.Fatal("Expect file", newFilePath, "to exist")
+  }
+
+  doc := Doc{Name: "Simple"}
+  err = doc.Find(db)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+}
 // Append labels to a existing list of labels
 func Test_DocAppendLabelsHandler_OK(t *testing.T) {
   globals := MakeTestGlobals(t)

@@ -20,9 +20,9 @@ type Label string
 type DocMakeRequest Doc
 type DocChangeRequest Doc
 
-type MongoDBSuccessResponse struct {
-  Status string
-  DocID string
+type DocRenameRequest struct {
+  Name string
+  NewName string
 }
 
 type DocAppendLabelsRequest struct {
@@ -53,6 +53,12 @@ type DocReadResponse struct {
   Status string
   Doc Doc
 }
+
+type MongoDBSuccessResponse struct {
+  Status string
+  DocID string
+}
+
 
 //
 // Authentication

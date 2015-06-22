@@ -380,7 +380,44 @@ func DocRemoveHandler(c *gin.Context, g Globals) {
 
   err = os.Remove(path.Join(g.Config["FILES_DIR"], name))
   if err != nil {
+type DocAppendLabelsRequest struct {
+  Name string
+  Labels []Label
+}
     MakeFailResponse(c, err.Error())
+  }
+
+  c.JSON(http.StatusOK, SuccessResponse{"success"})
+}
+
+func DocRenameHandler(c *gin.Context, g Globals) {
+  renameRequest := DocRenameRequest{}
+  err := ParseJSONRequest(c, &renameRequest)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(g.Config["MONGODB_DBNAME"])
+
+  doc := Doc{Name: renameRequest.Name}
+  changeDoc := Doc{Name: renameRequest.NewName}
+  err = doc.Change(changeDoc, db)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  docs := g.Config["FILES_DIR"]
+  oldPath := path.Join(docs, renameRequest.Name)
+  newPath := path.Join(docs, renameRequest.NewName)
+  err = os.Rename(oldPath, newPath)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
   }
 
   c.JSON(http.StatusOK, SuccessResponse{"success"})
@@ -404,6 +441,10 @@ func DocAppendLabelsHandler(c *gin.Context, g Globals) {
   if err != nil {
     MakeFailResponse(c, err.Error())
     return
+type DocAppendLabelsRequest struct {
+  Name string
+  Labels []Label
+}
   }
 
   c.JSON(http.StatusOK, SuccessResponse{"success"})
