@@ -333,7 +333,7 @@ func DocChangeHandler(c *gin.Context, g Globals) {
   db := session.DB(g.Config["MONGODB_DBNAME"])
 
   doc := Doc{Name: changeRequest.Name}
-  err = doc.Find(db)
+  err := doc.Find(db)
   if err != nil {
     MakeFailResponse(c, err.Error())
     return
