@@ -17,7 +17,12 @@ func Auth(c *gin.Context, g Globals) {
 
     token := c.Request.Header.Get(TokenHeaderField)
     if token == "" {
-      cookie, _ := c.Request.Cookie(XSRFCookieName)
+      cookie, err := c.Request.Cookie(XSRFCookieName)
+      if err != nil {
+        c.JSON(http.StatusUnauthorized, ErrorResponse{"fail", "Cookie not found"})
+        c.Abort()
+        return
+      }
       token = cookie.Value
       if token == "" {
         c.JSON(http.StatusUnauthorized, ErrorResponse{"fail", "Header not found"})
