@@ -6,7 +6,7 @@ import (
   "gopkg.in/mgo.v2/bson"
 )
 
-func Search(str string, db *mgo.Database) *[]bson.M {
+func Search(str string, db *mgo.Database) []bson.M {
   searchQuery := bson.M{}
   json.Unmarshal([]byte(str), &searchQuery)
 
@@ -15,5 +15,5 @@ func Search(str string, db *mgo.Database) *[]bson.M {
   result := []bson.M{}
   query := docsColl.Find(searchQuery)
   query.All(&result)
-  return &result
+  return result
 }

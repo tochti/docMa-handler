@@ -69,7 +69,7 @@ func Test_ChangeDoc_OK(t *testing.T) {
   db := session.DB(TestDBName)
   defer db.DropDatabase()
 
-  doc := Doc{Name: "changeme", Infos: DocInfos{}, Note: "note"}
+  doc := Doc{Name: "changeme", Infos: DocInfos{}}
 
   docsColl := db.C(DocsColl)
   err := docsColl.Insert(doc)
@@ -80,7 +80,8 @@ func Test_ChangeDoc_OK(t *testing.T) {
   accountData := DocAccountData{DocNumber: "123"}
   labels := []Label{"label1"}
   changeDoc := Doc{Name: "nicer", Barcode: "barcode",
-                   AccountData: accountData, Labels: labels}
+                   AccountData: accountData, Labels: labels,
+                   Note: "note"}
   err = doc.Change(changeDoc, db)
   if err != nil {
     t.Fatal(err.Error())

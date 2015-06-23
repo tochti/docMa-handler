@@ -19,7 +19,7 @@ import (
 
 func ReadDocFileHandler(c *gin.Context, g Globals) {
   filename := strings.Trim(c.Params.ByName("name"), "\"")
-  filepath := path.Join(g.Config["FILES_PATH"], filename)
+  filepath := path.Join(g.Config["FILES_DIR"], filename)
   c.File(filepath)
 }
 
@@ -312,30 +312,23 @@ func DocAppendLabelsHandler(c *gin.Context, g Globals) {
   if err != nil {
     MakeFailResponse(c, err.Error())
     return
-type DocAppendLabelsRequest struct {
-  Name string
-  Labels []Label
-}
   }
 
   c.JSON(http.StatusOK, SuccessResponse{"success"})
 }
 
-func DocRemoveLabelsHandler(c *gin.Context, g Globals) {
-  appendRequest := DocRemoveLabelsRequest{}
-  err := ParseJSONRequest(c, &appendRequest)
-  if err != nil {
-    MakeFailResponse(c, err.Error())
-    return
-  }
+func DocRemoveLabelHandler(c *gin.Context, g Globals) {
+  name := c.Params.ByName("name")
+  label := c.Params.ByName("label")
 
   session := g.MongoDB.Session.Copy()
   defer session.Close()
 
   db := session.DB(g.Config["MONGODB_DBNAME"])
 
-  doc := Doc{Name: appendRequest.Name}
-  err = doc.RemoveLabels(appendRequest.Labels, db)
+  doc := Doc{Name: name}
+  labels := []Label{Label(label)}
+  err := doc.RemoveLabels(labels, db)
   if err != nil {
     MakeFailResponse(c, err.Error())
     return

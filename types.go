@@ -32,11 +32,6 @@ type DocAppendLabelsRequest struct {
   Labels []Label
 }
 
-type DocRemoveLabelsRequest struct {
-  Name string
-  Labels []Label
-}
-
 type SuccessResponse struct {
   Status string
 }

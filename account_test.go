@@ -221,6 +221,6 @@ func Test_FindDocByDocNumber_OK(t *testing.T) {
 
 }
 
-func Test_FindDocsByAccNumber_OK(t *testing.T) {
+func Test_FindDocByAccNumber_OK(t *testing.T) {
 
 }

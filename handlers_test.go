@@ -464,7 +464,7 @@ func Test_DocChangeHandler_OK(t *testing.T) {
 
   handler := gin.New()
   handler.PATCH("/Doc", MakeGlobalsHandler(DocChangeHandler, globals))
-  changeRequest := `{"Name": "Touchme.txt", "Labels": ["label1"], "AccountData":{"DocNumber": "123"}}`
+  changeRequest := `{"Name": "Touchme.txt", "Note": "Mutti", "Labels": ["label1"], "AccountData":{"DocNumber": "123"}}`
   request := TestRequest{
                 Body: changeRequest,
                 Header: http.Header{},
@@ -493,7 +493,7 @@ func Test_DocChangeHandler_OK(t *testing.T) {
                 ID: docID,
                 Name: "Touchme.txt",
                 Barcode: "Codey",
-                Note: "Nutty",
+                Note: "Mutti",
                 AccountData: DocAccountData{DocNumber: "123"},
                 Labels: []Label{"label1"},
               }
@@ -708,7 +708,7 @@ func Test_DocAppendLabelsHandler_OK(t *testing.T) {
 }
 
 // Remove labels
-func Test_DocRemoveLabelsHandler_OK(t *testing.T) {
+func Test_DocRemoveLabelHandler_OK(t *testing.T) {
   globals := MakeTestGlobals(t)
   session := globals.MongoDB.Session.Copy()
   defer session.Close()
@@ -724,16 +724,15 @@ func Test_DocRemoveLabelsHandler_OK(t *testing.T) {
   err := docsColl.Insert(docTmp)
 
   handler := gin.New()
-  handler.DELETE("/Doc/Labels",
-                MakeGlobalsHandler(DocRemoveLabelsHandler, globals))
-  appendLabelsRequest := `{"Name": "Hoocker", "Labels":["l2", "l3"]}`
+  handler.DELETE("/DocLabels/:name/:label",
+                MakeGlobalsHandler(DocRemoveLabelHandler, globals))
   request := TestRequest{
-                Body: appendLabelsRequest,
+                Body: "",
                 Header: http.Header{},
                 Handler: handler,
               }
 
-  response := request.Send("DELETE", "/Doc/Labels")
+  response := request.Send("DELETE", "/DocLabels/Hoocker/l2")
 
   if strings.Contains(response.Body.String(), "success") == false {
     t.Fatal("Expect success response was", response)
@@ -745,10 +744,10 @@ func Test_DocRemoveLabelsHandler_OK(t *testing.T) {
     t.Fatal(err.Error())
   }
 
-  if len(doc.Labels) != 1 {
+  if len(doc.Labels) != 2 {
     t.Fatal("Expect 1 labels was", doc.Labels)
   }
-  if doc.Labels[0] != "l1" {
-    t.Fatal("Expect l1 was", doc.Labels[0])
+  if doc.Labels[0] != "l1" || doc.Labels[1] != "l3" {
+    t.Fatal("Expect l1 or l3 was", doc.Labels[0], doc.Labels[1])
   }
 }

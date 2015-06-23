@@ -19,15 +19,14 @@ func Test_Search(t *testing.T) {
   db := session.DB(TestDBName)
   defer db.DropDatabase()
 
-  filesColl := db.C("files")
-  err = filesColl.Insert(doc)
+  docsColl := db.C(DocsColl)
+  err = docsColl.Insert(doc)
   if err != nil {
     t.Fatal(err.Error())
   }
 
   searchStr := `{"Song.RingOf": "Fire"}`
-  tmp := Search(searchStr, db)
-  result := *tmp
+  result := Search(searchStr, db)
 
   if len(result) != 1 {
     t.Fatal("Expect len 1 was", len(result))
