@@ -12,42 +12,18 @@ import (
   "math/rand"
   "crypto/sha1"
 
-  "gopkg.in/mgo.v2"
   "gopkg.in/mgo.v2/bson"
   "github.com/gin-gonic/gin"
 )
 
-const (
-  FilesCollection = "files"
-)
 
-type ErrorResponse struct {
-  Status string
-  Msg string
-}
-
-type LoadDirResponse struct {
-  Status string
-  Dir []FileDoc
-}
-
-type AddTagsRequest struct {
-  Filename string
-  Tags []string
-}
-
-type LoadAccFilesResponse struct {
-  Status string
-  Msg string
-  AccFiles []AccFile
-}
-
-func ReadFileHandler(c *gin.Context, g Globals) {
-  filename := strings.Trim(c.Params.ByName("filename"), "\"")
+func ReadDocFileHandler(c *gin.Context, g Globals) {
+  filename := strings.Trim(c.Params.ByName("name"), "\"")
   filepath := path.Join(g.Config["FILES_PATH"], filename)
   c.File(filepath)
 }
 
+/*
 func LoadAccFiles(c *gin.Context) {
   session, err := mgo.Dial(GetSettings("BEBBER_DB_SERVER"))
   if err != nil {
@@ -84,12 +60,13 @@ func LoadAccFiles(c *gin.Context) {
 
   c.JSON(http.StatusOK, res)
 }
+*/
 
 func LoginHandler(c *gin.Context, g Globals) {
   loginData := LoginData{}
   err := ParseJSONRequest(c, &loginData)
   if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    MakeFailResponse(c, err.Error())
     return
   }
   session := g.MongoDB.Session.Copy()
@@ -104,11 +81,11 @@ func LoginHandler(c *gin.Context, g Globals) {
                      "password": sha1Pass})
   n, err := users.Count()
   if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    MakeFailResponse(c, err.Error())
     return
   }
   if n != 1 {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", "Wrong username or password"})
+    MakeFailResponse(c, "Wrong username or password")
     return
   }
 
@@ -121,7 +98,7 @@ func LoginHandler(c *gin.Context, g Globals) {
                              Token: token, Expires: expires}
   err = sessionsColl.Insert(userSession)
   if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    MakeFailResponse(c, err.Error())
     return
   }
 
@@ -142,19 +119,18 @@ func UserHandler(c *gin.Context, globals Globals) {
   users := usersColl.Find(bson.M{"username": username})
   n, err := users.Count()
   if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    MakeFailResponse(c, err.Error())
     return
   }
   if n != 1 {
-    //TODO: Info an Admin das es user mit dem selben Username mehrmals gibt
-    c.JSON(http.StatusOK, ErrorResponse{"fail", "Cannot find user"})
+    MakeFailResponse(c, "Cannot find user")
     return
   }
 
   user := User{}
   err = users.One(&user)
   if err != nil {
-    c.JSON(http.StatusOK, ErrorResponse{"fail", err.Error()})
+    MakeFailResponse(c, err.Error())
     return
   }
 

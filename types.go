@@ -61,6 +61,10 @@ type MongoDBSuccessResponse struct {
   DocID string
 }
 
+type ReadAccRecordsResponse struct {
+  Status string
+  AccRecords []AccRecordDocRef
+}
 
 //
 // Authentication
@@ -83,6 +87,31 @@ type UserSession struct {
 }
 
 //
+//  Accountant
+//
+
+type AccRecord struct {
+  DocDate time.Time
+  DateOfEntry time.Time
+  DocNumberRange string
+  DocNumber string
+  PostingText string
+  AmountPosted float64
+  DebitAcc int
+  CreditAcc int
+  TaxCode int
+  CostUnit1 string
+  CostUnit2 string
+  AmountPostedEuro float64
+  Currency string
+}
+
+type AccRecordDocRef struct {
+  AccRecord AccRecord
+  Doc Doc
+}
+
+//
 //  Doc
 //
 
@@ -94,19 +123,14 @@ type DocInfos struct {
 type DocNote string
 
 type DocAccountData struct {
-  DocDate time.Time
-  DateOfEntry time.Time
-  DocNumberRange string
   DocNumber string
-  PostingText string
-  AmountPosted float64
-  DebitAcc int64
-  CreditAcc int64
-  TaxCode int64
-  CostUnit1 string
-  CostUnit2 string
-  AmountPostedEuro float64
-  Currency string
+  DocPeriod DocPeriod
+  AccNumber int
+}
+
+type DocPeriod struct {
+  From time.Time
+  To time.Time
 }
 
 type Doc struct {

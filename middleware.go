@@ -14,13 +14,13 @@ func Auth(c *gin.Context, g Globals) {
     if token == "" {
       cookie, err := c.Request.Cookie(XSRFCookieName)
       if err != nil {
-        c.JSON(http.StatusUnauthorized, ErrorResponse{"fail", "Cookie not found"})
+        c.JSON(http.StatusUnauthorized, FailResponse{"fail", "Cookie not found"})
         c.Abort()
         return
       }
       token = cookie.Value
       if token == "" {
-        c.JSON(http.StatusUnauthorized, ErrorResponse{"fail", "Header not found"})
+        c.JSON(http.StatusUnauthorized, FailResponse{"fail", "Header not found"})
         c.Abort()
         return
       }
@@ -33,12 +33,12 @@ func Auth(c *gin.Context, g Globals) {
     query := sessionsColl.Find(bson.M{"token": token})
     n, err := query.Count()
     if err != nil {
-      c.JSON(http.StatusUnauthorized, ErrorResponse{"fail", err.Error()})
+      c.JSON(http.StatusUnauthorized, FailResponse{"fail", err.Error()})
       c.Abort()
       return
     }
     if n != 1 {
-      c.JSON(http.StatusUnauthorized, ErrorResponse{"fail", "Session not found"})
+      c.JSON(http.StatusUnauthorized, FailResponse{"fail", "Session not found"})
       c.Abort()
       return
 
@@ -47,12 +47,12 @@ func Auth(c *gin.Context, g Globals) {
     userSession := UserSession{}
     err = query.One(&userSession)
     if err != nil {
-      c.JSON(http.StatusUnauthorized, ErrorResponse{"fail", err.Error()})
+      c.JSON(http.StatusUnauthorized, FailResponse{"fail", err.Error()})
       c.Abort()
       return
     }
     if userSession.Expires.Before(time.Now()) {
-      c.JSON(http.StatusUnauthorized, ErrorResponse{"fail", "Session expired"})
+      c.JSON(http.StatusUnauthorized, FailResponse{"fail", "Session expired"})
       c.Abort()
       return
     } else {
