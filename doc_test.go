@@ -18,7 +18,15 @@ func Test_FindDoc_OK(t *testing.T) {
   defer db.DropDatabase()
 
   docID := bson.NewObjectId()
-  expectDoc := Doc{ID: docID, Name: "karl.pdf", Note: "Note", Labels: []Label{}}
+  expectDoc := Doc{
+    ID: docID,
+    Name: "karl.pdf",
+    Note: "Note",
+    Labels: []Label{},
+    AccountData: DocAccountData{
+      DocNumbers: []string{},
+    },
+  }
   err := db.C(DocsColl).Insert(expectDoc)
   if err != nil {
     t.Fatal(err.Error())
@@ -69,7 +77,14 @@ func Test_ChangeDoc_OK(t *testing.T) {
   db := session.DB(TestDBName)
   defer db.DropDatabase()
 
-  doc := Doc{Name: "changeme", Infos: DocInfos{}}
+  doc := Doc{
+    Name: "changeme",
+    Infos: DocInfos{},
+    AccountData: DocAccountData{
+      DocNumbers: []string{"2"},
+      AccNumber: 1223,
+    },
+  }
 
   docsColl := db.C(DocsColl)
   err := docsColl.Insert(doc)
@@ -77,7 +92,14 @@ func Test_ChangeDoc_OK(t *testing.T) {
     t.Fatal(err.Error())
   }
 
-  accountData := DocAccountData{DocNumber: "123"}
+  d := time.Now()
+  accountData := DocAccountData{
+    DocNumbers: []string{"1"},
+    DocPeriod: DocPeriod{
+      From: d,
+      To: d,
+    },
+  }
   labels := []Label{"label1"}
   changeDoc := Doc{Name: "nicer", Barcode: "barcode",
                    AccountData: accountData, Labels: labels,
@@ -118,10 +140,17 @@ func Test_ChangeDoc_OK(t *testing.T) {
     t.Fatal("Expect note was", docUpdated.Note)
   }
 
-  if docUpdated.AccountData.DocNumber != "123" {
-    t.Fatal("Expect 123 was", docUpdated.AccountData.DocNumber)
+  if len(docUpdated.AccountData.DocNumbers) != 1 {
+    t.Fatal("Expect 1 was", docUpdated.AccountData.DocNumbers)
   }
 
+  if docUpdated.AccountData.AccNumber !=  1223 {
+    t.Fatal("Expect 1223 was", docUpdated.AccountData.AccNumber)
+  }
+
+  if docUpdated.AccountData.DocPeriod.To.IsZero() {
+    t.Fatal("Expect", d, "was", docUpdated.AccountData.DocPeriod.To)
+  }
   if docUpdated.Labels[0] != "label1" {
     t.Fatal("Expect label1 was", docUpdated.Labels[0])
   }
@@ -260,87 +289,3 @@ func Test_RemoveLabels_OK(t *testing.T) {
     t.Fatal("Expect l1 was", docTmp.Labels[0])
   }
 }
-
-func Test_DocAccountDataIsValid_OK(t *testing.T) {
-  docAccountData := DocAccountData{
-    DocNumber: "docnumber",
-  }
-
-  ok, err := docAccountData.IsValid()
-  if ok != true {
-    t.Fatal(err.Error())
-  }
-
-  docAccountData = DocAccountData{
-    DocPeriod: DocPeriod{
-      From: time.Now(),
-      To: time.Now(),
-    },
-    AccNumber: 1993321,
-  }
-
-  ok, err = docAccountData.IsValid()
-  if ok != true {
-    t.Fatal(err.Error())
-  }
-}
-
-func Test_DocAccountDataIsValid_Fail(t *testing.T) {
-  docAccountData := DocAccountData{
-    DocNumber: "docnumber",
-    AccNumber: 19999,
-  }
-
-  ok, err := docAccountData.IsValid()
-  errMsg := "Accountant data mismatch!"
-  if ok != false {
-    t.Fatal("Expect", errMsg, "was", err)
-  }
-
-  docAccountData = DocAccountData{
-    DocNumber: "docnumber",
-    DocPeriod: DocPeriod{
-      From: time.Now(),
-      To: time.Now(),
-    },
-  }
-
-  ok, err = docAccountData.IsValid()
-  errMsg = "Accountant data mismatch!"
-  if ok != false {
-    t.Fatal("Expect", errMsg, "was", err)
-  }
-
-  docAccountData = DocAccountData{
-  }
-
-  ok, err = docAccountData.IsValid()
-  errMsg = "Missing Accountant data!"
-  if ok != false {
-    t.Fatal("Exepct", errMsg, "was", err)
-  }
-
-  docAccountData = DocAccountData{
-    AccNumber: 123456,
-  }
-
-  ok, err = docAccountData.IsValid()
-  errMsg = "Missing document period data!"
-  if ok != false {
-    t.Fatal("Exepct", errMsg, "was", err)
-  }
-
-  docAccountData = DocAccountData{
-    DocPeriod: DocPeriod{
-      From: time.Now(),
-      To: time.Now(),
-    },
-  }
-
-  ok, err = docAccountData.IsValid()
-  errMsg = "Missing account number!"
-  if ok != false {
-    t.Fatal("Exepct", errMsg, "was", err)
-  }
-}
-

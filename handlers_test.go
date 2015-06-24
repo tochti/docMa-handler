@@ -294,17 +294,19 @@ func Test_DocMakeHandler_MakeNewDocOK(t *testing.T) {
 
   date := time.Date(2015, 1, 1, 0,0,0,0, time.UTC)
   docInfos := DocInfos {
-                DateOfScan: date,
-                DateOfReceipt: date,
-              }
+    DateOfScan: date,
+    DateOfReceipt: date,
+  }
   docRequest := Doc{
-              Name: "darkmoon.txt",
-              Infos: docInfos,
-              Barcode: "darkmoon",
-              Note: "There was a man...",
-              Labels: []Label{Label("old"), Label("story")},
-              AccountData: DocAccountData{DocNumber: "0815"},
-            }
+    Name: "darkmoon.txt",
+    Infos: docInfos,
+    Barcode: "darkmoon",
+    Note: "There was a man...",
+    Labels: []Label{Label("old"), Label("story")},
+    AccountData: DocAccountData{
+      DocNumbers: []string{"0815"},
+    },
+  }
 
   docRequestJSON, err := json.Marshal(docRequest)
   if err != nil {
@@ -314,10 +316,10 @@ func Test_DocMakeHandler_MakeNewDocOK(t *testing.T) {
   handler := gin.New()
   handler.POST("/Doc", MakeGlobalsHandler(DocMakeHandler, globals))
   request := TestRequest{
-                Body: string(docRequestJSON),
-                Header: http.Header{},
-                Handler: handler,
-              }
+    Body: string(docRequestJSON),
+    Header: http.Header{},
+    Handler: handler,
+  }
   response := request.Send("POST", "/Doc")
 
   if strings.Contains(response.Body.String(), `"Status":"success"`) == false {
@@ -456,7 +458,12 @@ func Test_DocChangeHandler_OK(t *testing.T) {
   docsColl := db.C(DocsColl)
 
   docID := bson.NewObjectId()
-  docTmp := Doc{ID: docID, Name: "Touchme.txt", Barcode: "Codey", Note: "Nutty"}
+  docTmp := Doc{
+    ID: docID,
+    Name: "Touchme.txt", 
+    Barcode: "Codey",
+    Note: "Nutty",
+  }
   err := docsColl.Insert(docTmp)
   if err != nil {
     t.Fatal(err.Error())
@@ -464,7 +471,12 @@ func Test_DocChangeHandler_OK(t *testing.T) {
 
   handler := gin.New()
   handler.PATCH("/Doc", MakeGlobalsHandler(DocChangeHandler, globals))
-  changeRequest := `{"Name": "Touchme.txt", "Note": "Mutti", "Labels": ["label1"], "AccountData":{"DocNumber": "123"}}`
+  changeRequest := `{
+    "Name": "Touchme.txt",
+    "Note": "Mutti",
+    "Labels": ["label1"],
+    "AccountData":{"DocNumbers": ["123"]}
+  }`
   request := TestRequest{
                 Body: changeRequest,
                 Header: http.Header{},
@@ -490,13 +502,15 @@ func Test_DocChangeHandler_OK(t *testing.T) {
   }
 
   expectDoc := Doc{
-                ID: docID,
-                Name: "Touchme.txt",
-                Barcode: "Codey",
-                Note: "Mutti",
-                AccountData: DocAccountData{DocNumber: "123"},
-                Labels: []Label{"label1"},
-              }
+    ID: docID,
+    Name: "Touchme.txt",
+    Barcode: "Codey",
+    Note: "Mutti",
+    AccountData: DocAccountData{
+      DocNumbers: []string{"123"},
+    },
+    Labels: []Label{"label1"},
+  }
   expectDocJSON, err := json.Marshal(expectDoc)
   if err != nil {
     t.Fatal(err.Error())
@@ -518,7 +532,14 @@ func Test_DocReadHandler_OK(t *testing.T) {
   docsColl := db.C(DocsColl)
 
   docID := bson.NewObjectId()
-  expectDoc := Doc{ID: docID, Name: "Seek.pdf", Labels: []Label{}}
+  expectDoc := Doc{
+    ID: docID,
+    Name: "Seek.pdf",
+    Labels: []Label{},
+    AccountData: DocAccountData{
+      DocNumbers: []string{},
+    },
+  }
 
   err := docsColl.Insert(expectDoc)
   if err != nil {
@@ -529,10 +550,10 @@ func Test_DocReadHandler_OK(t *testing.T) {
   handler.GET("/Doc/:name", MakeGlobalsHandler(DocReadHandler, globals))
 
   request := TestRequest{
-                Body: "",
-                Header: http.Header{},
-                Handler: handler,
-              }
+    Body: "",
+    Header: http.Header{},
+    Handler: handler,
+  }
   response := request.Send("GET", "/Doc/Seek.pdf")
 
   docReadResponse := DocReadResponse{Status: "success", Doc: expectDoc}
@@ -750,4 +771,81 @@ func Test_DocRemoveLabelHandler_OK(t *testing.T) {
   if doc.Labels[0] != "l1" || doc.Labels[1] != "l3" {
     t.Fatal("Expect l1 or l3 was", doc.Labels[0], doc.Labels[1])
   }
+}
+
+func Test_AccProcessMake_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  handler := gin.New()
+  handler.POST("/AccProcess",
+    MakeGlobalsHandler(AccProcessMakeHandler, globals))
+  requestBody := AccProcessMakeRequest{}
+  requestBodyJSON, err := json.Marshal(requestBody)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  request := TestRequest{
+    Body: string(requestBodyJSON),
+    Header: http.Header{},
+    Handler: handler,
+  }
+
+  response := request.Send("POST", "/AccProcess")
+
+  responseBody := AccProcessMakeResponse{}
+
+  tmp := []byte(response.Body.String())
+  err = json.Unmarshal(tmp, &responseBody)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if responseBody.Status != "success" {
+    t.Fatal("Expect success was", responseBody.Status)
+  }
+
+  accProcessColl := db.C(AccProcessColl)
+  docID := bson.ObjectIdHex(responseBody.DocID)
+  query := accProcessColl.Find(bson.M{"_id": docID})
+  n, err := query.Count()
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  if n != 1 {
+    t.Fatal("Expect 1 was", n)
+  }
+
+}
+
+func Test_FindAccProcessByDocNumberHandler_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  handler := gin.New()
+  handler.GET("/AccProcess/FindByDocNumber/:number",
+    MakeGlobalsHandler(AccProcessMakeHandler, globals))
+  requestBody := AccProcessMakeRequest{}
+  requestBodyJSON, err := json.Marshal(requestBody)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  request := TestRequest{
+    Body: string(requestBodyJSON),
+    Header: http.Header{},
+    Handler: handler,
+  }
+
+  response := request.Send("POST", "/AccProcess")
+  fmt.Println(response)
 }

@@ -336,3 +336,29 @@ func DocRemoveLabelHandler(c *gin.Context, g Globals) {
 
   c.JSON(http.StatusOK, SuccessResponse{"success"})
 }
+
+func AccProcessMakeHandler(c *gin.Context, g Globals) {
+  requestBody := AccProcessMakeRequest{}
+  err := ParseJSONRequest(c, &requestBody)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(g.Config["MONGODB_DBNAME"])
+  accProcessColl := db.C(AccProcessColl)
+
+  docID := bson.NewObjectId()
+  requestBody.ID = docID
+  err = accProcessColl.Insert(requestBody)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  response := AccProcessMakeResponse{"success", docID.Hex()}
+  c.JSON(http.StatusOK, response)
+}

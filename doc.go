@@ -27,12 +27,13 @@ func (d *Doc) Find(db *mgo.Database) error {
     return errors.New("Found "+ strconv.Itoa(n) +" documents "+ doc.Name)
   }
 
-  err = query.One(&doc)
+  docTmp := Doc{}
+  err = query.One(&docTmp)
   if err != nil {
     return err
   }
 
-  *d = doc
+  *d = docTmp
 
   return nil
 }
@@ -56,11 +57,14 @@ func (d *Doc) Change(changeDoc Doc, db *mgo.Database) error {
     setMap["note"] = changeDoc.Note
   }
   if changeDoc.AccountData.IsEmpty() == false {
-    ok, err := changeDoc.AccountData.IsValid()
-    if ok {
-      setMap["accountdata"] = changeDoc.AccountData
-    } else if (ok == false) && (err != nil){
-      return err
+    if len(changeDoc.AccountData.DocNumbers) != 0 {
+      setMap["accountdata.docnumbers"] = changeDoc.AccountData.DocNumbers
+    }
+    if changeDoc.AccountData.AccNumber != 0 {
+      setMap["accountdata.accnumber"] = changeDoc.AccountData.AccNumber
+    }
+    if changeDoc.AccountData.DocPeriod.IsEmpty() == false {
+      setMap["accountdata.docperiod"] = changeDoc.AccountData.DocPeriod
     }
   }
   if len(changeDoc.Labels) != 0 {
@@ -142,7 +146,7 @@ func (docP DocPeriod) IsEmpty() bool {
 }
 
 func (docAD DocAccountData) IsEmpty() bool {
-  if (docAD.DocNumber == "") &&
+  if (len(docAD.DocNumbers) == 0) &&
     (docAD.DocPeriod.From.IsZero()) &&
     (docAD.DocPeriod.To.IsZero()) &&
     (docAD.AccNumber == 0) {
@@ -150,34 +154,6 @@ func (docAD DocAccountData) IsEmpty() bool {
   } else {
     return false
   }
-}
-
-func (docAD DocAccountData) IsValid() (bool, error) {
-  if docAD.IsEmpty() {
-    return false, errors.New("Missing accountant data!")
-  }
-
-  if docAD.DocNumber != "" {
-    if (docAD.DocPeriod.IsEmpty() == false) || (docAD.AccNumber != 0) {
-      return false, errors.New("Accountant data mismatch!")
-    }
-  }
-
-  if (docAD.DocPeriod.IsEmpty() == false) || (docAD.AccNumber != 0) {
-    if docAD.DocNumber != "" {
-      return false, errors.New("Accountant data mismatch!")
-    }
-  }
-
-  if (docAD.AccNumber != 0) && (docAD.DocPeriod.IsEmpty()) {
-    return false, errors.New("Missing document period data!")
-  }
-
-  if (docAD.DocPeriod.IsEmpty() == false) && (docAD.AccNumber == 0) {
-    return false, errors.New("Missing account number!")
-  }
-
-  return true, nil
 }
 
 func (infos DocInfos) IsEmpty() bool {

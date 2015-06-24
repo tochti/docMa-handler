@@ -9,6 +9,7 @@ const (
   DocsColl = "Docs"
   UsersColl= "Users"
   SessionsColl = "Sessions"
+  AccProcessColl = "AccProcess"
   XSRFCookieName = "XSRF-TOKEN"
   TokenHeaderField = "X-XSRF-TOKEN"
 )
@@ -31,6 +32,8 @@ type DocAppendLabelsRequest struct {
   Name string
   Labels []Label
 }
+
+type AccProcessMakeRequest AccProcess
 
 type SuccessResponse struct {
   Status string
@@ -56,9 +59,14 @@ type MongoDBSuccessResponse struct {
   DocID string
 }
 
-type ReadAccRecordsResponse struct {
+type ReadAccProcessResponse struct {
   Status string
-  AccRecords []AccRecordDocRef
+  AccProcess []AccProcessDocRef
+}
+
+type AccProcessMakeResponse struct {
+  Status string
+  DocID string
 }
 
 //
@@ -85,7 +93,8 @@ type UserSession struct {
 //  Accountant
 //
 
-type AccRecord struct {
+type AccProcess struct {
+  ID bson.ObjectId `bson:"_id,omitempty"`
   DocDate time.Time
   DateOfEntry time.Time
   DocNumberRange string
@@ -101,8 +110,8 @@ type AccRecord struct {
   Currency string
 }
 
-type AccRecordDocRef struct {
-  AccRecord AccRecord
+type AccProcessDocRef struct {
+  AccProcess AccProcess
   Doc Doc
 }
 
@@ -118,7 +127,7 @@ type DocInfos struct {
 type DocNote string
 
 type DocAccountData struct {
-  DocNumber string
+  DocNumbers []string
   DocPeriod DocPeriod
   AccNumber int
 }
