@@ -279,13 +279,90 @@ func Test_RemoveLabels_OK(t *testing.T) {
   }
 
   if len(doc.Labels) != 1 {
-    t.Fatal("Expect 3 labels was", doc.Labels)
+    t.Fatal("Expect 1 labels was", doc.Labels)
   }
   if len(docTmp.Labels) != 1 {
-    t.Fatal("Expect 3 labels was", doc.Labels)
+    t.Fatal("Expect 1 labels was", doc.Labels)
   }
 
   if docTmp.Labels[0] != "l1" {
     t.Fatal("Expect l1 was", docTmp.Labels[0])
+  }
+}
+
+func Test_AppendDocNumbers_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  docTmp := Doc{
+    Name: "Hoocker",
+    AccountData: DocAccountData {
+      DocNumbers: []string{"1"},
+    },
+  }
+  docsColl := db.C(DocsColl)
+  err := docsColl.Insert(docTmp)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  numbers := []string{"2", "3"}
+  docTmp.AppendDocNumbers(numbers, db)
+
+  doc := Doc{Name: "Hoocker"}
+  err = doc.Find(db)
+  if err != nil {
+    t.Fatal(err)
+  }
+
+  if len(doc.AccountData.DocNumbers) != 3 {
+    t.Fatal("Expect 3 labels was", doc.AccountData.DocNumbers)
+  }
+  if len(docTmp.AccountData.DocNumbers) != 3 {
+    t.Fatal("Expect 3 labels was", docTmp.AccountData.DocNumbers)
+  }
+}
+
+func Test_RemoveDocNumbers_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  docTmp := Doc{
+    Name: "Hoocker",
+    AccountData: DocAccountData{
+      DocNumbers: []string{"1", "2", "3"},
+    },
+  }
+  docsColl := db.C(DocsColl)
+  err := docsColl.Insert(docTmp)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  docNumbers := []string{"1", "2"}
+  docTmp.RemoveDocNumbers(docNumbers, db)
+
+  doc := Doc{Name: "Hoocker"}
+  err = doc.Find(db)
+  if err != nil {
+    t.Fatal(err)
+  }
+
+  if len(doc.AccountData.DocNumbers) != 1 {
+    t.Fatal("Expect 1 labels was", doc.AccountData.DocNumbers)
+  }
+  if len(docTmp.AccountData.DocNumbers) != 1 {
+    t.Fatal("Expect 1 labels was", doc.AccountData.DocNumbers)
+  }
+  if docTmp.AccountData.DocNumbers[0] != "3" {
+    t.Fatal("Expect 3 was", docTmp.AccountData.DocNumbers[0])
   }
 }

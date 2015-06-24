@@ -773,6 +773,102 @@ func Test_DocRemoveLabelHandler_OK(t *testing.T) {
   }
 }
 
+// Append docnumbers to a existing list of labels
+func Test_DocAppendDocNumbersHandler_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  docTmp := Doc{
+    Name: "Hoocker",
+    AccountData: DocAccountData{
+      DocNumbers: []string{},
+    },
+  }
+  docsColl := db.C(DocsColl)
+  err := docsColl.Insert(docTmp)
+
+  handler := gin.New()
+  handler.PATCH("/DocLabels",
+                MakeGlobalsHandler(DocAppendDocNumbersHandler, globals))
+  appendLabelsRequest := `{
+    "Name": "Hoocker",
+    "DocNumbers": ["1","2"]
+  }`
+  request := TestRequest{
+      Body: appendLabelsRequest,
+      Header: http.Header{},
+      Handler: handler,
+    }
+
+  response := request.Send("PATCH", "/DocLabels")
+
+  if strings.Contains(response.Body.String(), "success") == false {
+    t.Fatal("Expect success response was", response)
+  }
+
+  doc := Doc{Name: "Hoocker"}
+  err = doc.Find(db)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if len(doc.AccountData.DocNumbers) != 2 {
+    t.Fatal("Expect 2 doc numbers was", doc.AccountData.DocNumbers)
+  }
+}
+
+// Remove docnumber
+func Test_DocRemoveDocNumberHandler_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  docTmp := Doc{
+    Name: "Hoocker",
+    AccountData: DocAccountData{
+      DocNumbers: []string{"1", "2", "3"},
+    },
+  }
+  docsColl := db.C(DocsColl)
+  err := docsColl.Insert(docTmp)
+
+  handler := gin.New()
+  handler.DELETE("/DocNumber/:name/:number",
+    MakeGlobalsHandler(DocRemoveDocNumberHandler, globals))
+  request := TestRequest{
+    Body: "",
+    Header: http.Header{},
+    Handler: handler,
+  }
+
+  response := request.Send("DELETE", "/DocNumber/Hoocker/2")
+
+  if strings.Contains(response.Body.String(), "success") == false {
+    t.Fatal("Expect success response was", response)
+  }
+
+  doc := Doc{Name: "Hoocker"}
+  err = doc.Find(db)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if len(doc.AccountData.DocNumbers) != 2 {
+    t.Fatal("Expect 1 labels was", doc.Labels)
+  }
+  if (doc.AccountData.DocNumbers[0] != "1") ||
+     (doc.AccountData.DocNumbers[1] != "3" ) {
+    t.Fatal("Expect 1 or 3 was", doc.Labels[0], doc.Labels[1])
+  }
+}
+
 func Test_AccProcessMake_OK(t *testing.T) {
   globals := MakeTestGlobals(t)
   session := globals.MongoDB.Session.Copy()

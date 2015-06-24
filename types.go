@@ -33,6 +33,11 @@ type DocAppendLabelsRequest struct {
   Labels []Label
 }
 
+type DocAppendDocNumbersRequest struct {
+  Name string
+  DocNumbers []string
+}
+
 type AccProcessMakeRequest AccProcess
 
 type SuccessResponse struct {

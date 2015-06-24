@@ -135,6 +135,50 @@ func (d *Doc) RemoveLabels(labels []Label, db *mgo.Database) error {
   return nil
 }
 
+func (d *Doc) AppendDocNumbers(docNumbers []string, db *mgo.Database) error {
+  doc := *d
+  docsColl := db.C(DocsColl)
+  changeRequest := bson.M{
+    "$addToSet": bson.M{
+      "accountdata.docnumbers": bson.M{
+        "$each": docNumbers,
+      },
+    },
+  }
+  change := mgo.Change{
+              Update: changeRequest,
+              ReturnNew: true,
+            }
+  returnDoc := Doc{}
+  _, err := docsColl.Find(bson.M{"name": doc.Name}).Apply(change, &returnDoc)
+  if err != nil {
+    return err
+  }
+  *d = returnDoc
+  return nil
+}
+
+func (d *Doc) RemoveDocNumbers(docNumbers []string, db *mgo.Database) error {
+  doc := *d
+  docsColl := db.C(DocsColl)
+  changeRequest := bson.M{
+    "$pullAll": bson.M{
+      "accountdata.docnumbers": docNumbers,
+    },
+  }
+  change := mgo.Change{
+              Update: changeRequest,
+              ReturnNew: true,
+            }
+  returnDoc := Doc{}
+  _, err := docsColl.Find(bson.M{"name": doc.Name}).Apply(change, &returnDoc)
+  if err != nil {
+    return err
+  }
+  *d = returnDoc
+  return nil
+}
+
 func (docP DocPeriod) IsEmpty() bool {
   if (docP.From.IsZero()) &&
     (docP.To.IsZero()) {

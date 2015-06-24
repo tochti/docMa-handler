@@ -337,6 +337,49 @@ func DocRemoveLabelHandler(c *gin.Context, g Globals) {
   c.JSON(http.StatusOK, SuccessResponse{"success"})
 }
 
+func DocAppendDocNumbersHandler(c *gin.Context, g Globals) {
+  appendRequest := DocAppendDocNumbersRequest{}
+  err := ParseJSONRequest(c, &appendRequest)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(g.Config["MONGODB_DBNAME"])
+
+  doc := Doc{Name: appendRequest.Name}
+  err = doc.AppendDocNumbers(appendRequest.DocNumbers, db)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  c.JSON(http.StatusOK, SuccessResponse{"success"})
+}
+
+func DocRemoveDocNumberHandler(c *gin.Context, g Globals) {
+  name := c.Params.ByName("name")
+  number := c.Params.ByName("number")
+
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(g.Config["MONGODB_DBNAME"])
+
+  doc := Doc{Name: name}
+  docNumbers := []string{number}
+  err := doc.RemoveDocNumbers(docNumbers, db)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  c.JSON(http.StatusOK, SuccessResponse{"success"})
+}
+
 func AccProcessMakeHandler(c *gin.Context, g Globals) {
   requestBody := AccProcessMakeRequest{}
   err := ParseJSONRequest(c, &requestBody)
