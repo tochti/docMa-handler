@@ -40,6 +40,7 @@ type DocAppendDocNumbersRequest struct {
 
 type AccProcessMakeRequest AccProcess
 
+
 type SuccessResponse struct {
   Status string
 }
@@ -64,7 +65,7 @@ type MongoDBSuccessResponse struct {
   DocID string
 }
 
-type ReadAccProcessResponse struct {
+type AccProcessReadResponse struct {
   Status string
   AccProcess []AccProcessDocRef
 }
@@ -72,6 +73,16 @@ type ReadAccProcessResponse struct {
 type AccProcessMakeResponse struct {
   Status string
   DocID string
+}
+
+type AccProcessFindByDocNumberResponse struct {
+  Status string
+  AccProcessList []AccProcess
+}
+
+type AccProcessFindByAccNumberResponse struct {
+  Status string
+  AccProcessList []AccProcess
 }
 
 //

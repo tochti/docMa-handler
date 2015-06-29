@@ -95,11 +95,29 @@ func MakeTestGlobals(t *testing.T) Globals{
   }
 
   return Globals{
-                  MongoDB: conn,
-                  Config: Config{
-                            "MONGODB_DBNAME": TestDBName,
-                            "MONGODB_HOST": TestDBHost,
-                        },
-                  }
-
+    MongoDB: conn,
+    Config: Config{
+      "MONGODB_DBNAME": TestDBName,
+      "MONGODB_HOST": TestDBHost,
+    },
+  }
 }
+
+func ImportAccProcess(db *mgo.Database, file string) error {
+  result, err := ReadAccProcessFile(file)
+  if err != nil {
+    return err
+  }
+  accProcessColl := db.C(AccProcessColl)
+  insert := make([]interface{}, len(result))
+  for i := range result {
+    insert[i] = result[i]
+  }
+  err = accProcessColl.Insert(insert...)
+  if err != nil {
+    return err
+  }
+
+  return nil
+}
+

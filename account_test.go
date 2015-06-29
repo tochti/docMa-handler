@@ -3,12 +3,13 @@ package bebber
 import (
   "path"
   "time"
+  "strings"
   "testing"
 )
 
-func Test_ReadAccRecordsFile_OK(t *testing.T) {
+func Test_ReadAccProcessFile_OK(t *testing.T) {
   csvFile := path.Join(testDir, "export.csv")
-  result, err := ReadAccRecordsFile(csvFile)
+  result, err := ReadAccProcessFile(csvFile)
 
   if err != nil {
     t.Fatal(err.Error())
@@ -205,15 +206,74 @@ func Test_JoinAccFile_OK(t *testing.T) {
 }
 */
 
-func Test_ImportAccRecords_OK(t *testing.T) {
+func Test_FindAccProcessByDocNumber_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  ImportAccProcess(db, path.Join(testDir, "export.csv"))
+
+  docNumbers := []string{"B6", "13"}
+  result, err := FindAccProcessByDocNumbers(db, docNumbers)
+
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if len(result) != 2 {
+    t.Fatal("Expect 2 results was", result)
+  }
+
+  if result[0].DocNumberRange != "B" {
+    t.Fatal("Expect B was", result[0].DocNumberRange)
+  }
+  if result[0].DocNumber != "6" {
+    t.Fatal("Expect 6 was", result[0].DocNumber)
+  }
+
+  if result[1].DocNumberRange != "" {
+    t.Fatal("Expect empty string was", result[0].DocNumberRange)
+  }
+  if result[1].DocNumber != "13" {
+    t.Fatal("Expect 13 was", result[0].DocNumber)
+  }
+
 
 }
 
-func Test_FindAccRecordByDocNumber_OK(t *testing.T) {
-  //err := ImportAccRecords(path.Join(testDir, "export.csv"))
-}
+func Test_FindAccProcessByAccNumber_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
 
-func Test_FindAccRecordsByAccNumber_OK(t *testing.T) {
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  ImportAccProcess(db, path.Join(testDir, "export.csv"))
+
+  accNumber := 71002
+  fromDate := time.Date(2013,8,21,0,0,0,0,time.UTC)
+  toDate := time.Date(2013,9,1,0,0,0,0,time.UTC)
+  result, err := FindAccProcessByAccNumber(db, accNumber, fromDate, toDate)
+
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if len(result) != 2 {
+    t.Fatal("Expect 2 results was", result)
+  }
+
+  if result[0].DocNumber != "9" {
+    t.Fatal("Expect 9 was", result[0].DocNumber)
+  }
+  if result[1].DocNumber != "13" {
+    t.Fatal("Expect 13 was", result[1].DocNumber)
+  }
+
 
 }
 
@@ -223,4 +283,41 @@ func Test_FindDocByDocNumber_OK(t *testing.T) {
 
 func Test_FindDocByAccNumber_OK(t *testing.T) {
 
+}
+
+func Test_SplitDocNumber_OK(t *testing.T) {
+  rang, number, err := SplitDocNumber("BB123")
+  if err != nil {
+    t.Fatal("Expect nil was", err)
+  }
+  if rang != "BB" {
+    t.Fatal("Expect BB was", rang)
+  }
+  if number != "123" {
+    t.Fatal("Expect 123 was", number)
+  }
+
+  rang, number, err = SplitDocNumber("987")
+  if err != nil {
+    t.Fatal("Expect nil was", err)
+  }
+  if rang != "" {
+    t.Fatal("Expect empty string was", rang)
+  }
+  if number != "987" {
+    t.Fatal("Expect 987 was", number)
+  }
+}
+
+func Test_SplitDocNumber_Fail(t *testing.T) {
+  _, _, err := SplitDocNumber("BB")
+
+  expectErrMsg := "Invalid docnumber!"
+  if err != nil {
+    if strings.Contains(err.Error(), expectErrMsg) == false {
+      t.Fatal("Expect", expectErrMsg, "was nil")
+    }
+  } else {
+    t.Fatal("Expect", expectErrMsg, "was nil")
+  }
 }

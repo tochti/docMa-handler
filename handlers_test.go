@@ -869,7 +869,7 @@ func Test_DocRemoveDocNumberHandler_OK(t *testing.T) {
   }
 }
 
-func Test_AccProcessMake_OK(t *testing.T) {
+func Test_AccProcessMakeHandler_OK(t *testing.T) {
   globals := MakeTestGlobals(t)
   session := globals.MongoDB.Session.Copy()
   defer session.Close()
@@ -927,21 +927,95 @@ func Test_FindAccProcessByDocNumberHandler_OK(t *testing.T) {
   db := session.DB(TestDBName)
   defer db.DropDatabase()
 
-  handler := gin.New()
-  handler.GET("/AccProcess/FindByDocNumber/:number",
-    MakeGlobalsHandler(AccProcessMakeHandler, globals))
-  requestBody := AccProcessMakeRequest{}
-  requestBodyJSON, err := json.Marshal(requestBody)
+  err := ImportAccProcess(db, path.Join(testDir, "export.csv"))
   if err != nil {
     t.Fatal(err.Error())
   }
 
+  handler := gin.New()
+  handler.GET("/AccProcess/FindByDocNumber/:number",
+    MakeGlobalsHandler(AccProcessFindByDocNumberHandler, globals))
+
   request := TestRequest{
-    Body: string(requestBodyJSON),
+    Body: "",
     Header: http.Header{},
     Handler: handler,
   }
 
-  response := request.Send("POST", "/AccProcess")
-  fmt.Println(response)
+  response := request.Send("GET", "/AccProcess/FindByDocNumber/13")
+
+  if response.Code != 200 {
+    t.Fatal("Expect 200 was", response.Code)
+  }
+
+  result := AccProcessFindByDocNumberResponse{}
+  err = json.Unmarshal([]byte(response.Body.String()), &result)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if len(result.AccProcessList) != 1 {
+    t.Fatal("Expect len of 1 was", len(result.AccProcessList))
+  }
+
+  expectDocNumber := "13"
+  if result.AccProcessList[0].DocNumber != expectDocNumber {
+    t.Fatal("Expect", expectDocNumber, "was", result.AccProcessList[0].DocNumber)
+  }
+
+  expectPostingText := "Miete 09.2013"
+  if result.AccProcessList[0].PostingText != expectPostingText {
+    t.Fatal("Expect", expectPostingText, "was", result.AccProcessList[0].PostingText)
+  }
+}
+
+func Test_FindAccProcessByAccNumberHandler_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  err := ImportAccProcess(db, path.Join(testDir, "export.csv"))
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  handler := gin.New()
+  handler.GET("/AccProcess/FindByAccNumber/:from/:to/:number",
+    MakeGlobalsHandler(AccProcessFindByAccNumberHandler, globals))
+
+  request := TestRequest{
+    Body: "",
+    Header: http.Header{},
+    Handler: handler,
+  }
+
+  response := request.Send("GET",
+    "/AccProcess/FindByAccNumber/31082013/01092013/71002")
+
+  if response.Code != 200 {
+    t.Fatal("Expect 200 was", response.Code)
+  }
+
+  result := AccProcessFindByAccNumberResponse{}
+  err = json.Unmarshal([]byte(response.Body.String()), &result)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if len(result.AccProcessList) != 1 {
+    t.Fatal("Expect len of 1 was", len(result.AccProcessList))
+  }
+
+  expectDocNumber := "13"
+  if result.AccProcessList[0].DocNumber != expectDocNumber {
+    t.Fatal("Expect", expectDocNumber, "was", result.AccProcessList[0].DocNumber)
+  }
+
+  expectPostingText := "Miete 09.2013"
+  if result.AccProcessList[0].PostingText != expectPostingText {
+    t.Fatal("Expect", expectPostingText, "was", result.AccProcessList[0].PostingText)
+  }
 }

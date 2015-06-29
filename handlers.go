@@ -405,3 +405,63 @@ func AccProcessMakeHandler(c *gin.Context, g Globals) {
   response := AccProcessMakeResponse{"success", docID.Hex()}
   c.JSON(http.StatusOK, response)
 }
+
+func AccProcessFindByDocNumberHandler(c *gin.Context, g Globals) {
+  number := c.Params.ByName("number")
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(g.Config["MONGODB_DBNAME"])
+
+  accProcessList, err := FindAccProcessByDocNumbers(db, []string{number})
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  response := AccProcessFindByDocNumberResponse{
+    "success",
+    accProcessList,
+  }
+  c.JSON(http.StatusOK, response)
+}
+
+func AccProcessFindByAccNumberHandler(c *gin.Context, g Globals) {
+  from := c.Params.ByName("from")
+  fromDate, err := ParseDate(from)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  to := c.Params.ByName("to")
+  toDate, err := ParseDate(to)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  number := c.Params.ByName("number")
+  accNumber, err := strconv.Atoi(number)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(g.Config["MONGODB_DBNAME"])
+
+  accProList, err := FindAccProcessByAccNumber(db, accNumber, fromDate, toDate)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  response := AccProcessFindByDocNumberResponse{
+    "success",
+    accProList,
+  }
+  c.JSON(http.StatusOK, response)
+}
