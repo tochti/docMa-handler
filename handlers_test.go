@@ -792,7 +792,7 @@ func Test_DocAppendDocNumbersHandler_OK(t *testing.T) {
   err := docsColl.Insert(docTmp)
 
   handler := gin.New()
-  handler.PATCH("/DocLabels",
+  handler.PATCH("/DocNumbers",
                 MakeGlobalsHandler(DocAppendDocNumbersHandler, globals))
   appendLabelsRequest := `{
     "Name": "Hoocker",
@@ -804,7 +804,7 @@ func Test_DocAppendDocNumbersHandler_OK(t *testing.T) {
       Handler: handler,
     }
 
-  response := request.Send("PATCH", "/DocLabels")
+  response := request.Send("PATCH", "/DocNumbers")
 
   if strings.Contains(response.Body.String(), "success") == false {
     t.Fatal("Expect success response was", response)
