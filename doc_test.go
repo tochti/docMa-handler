@@ -251,6 +251,34 @@ func Test_AppendLabels_OK(t *testing.T) {
   }
 }
 
+func Test_AppendLabel_DoupleFail(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  docTmp := Doc{
+              Name: "Hoocker",
+              Labels: []Label{"single"},
+            }
+  docsColl := db.C(DocsColl)
+  err := docsColl.Insert(docTmp)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  labels := []Label{Label("l2"), Label("single")}
+  err = docTmp.AppendLabels(labels, db)
+
+  errMsg := "Label already exists!"
+  if strings.Contains(err.Error(), errMsg) == false {
+    t.Fatal("Expect", errMsg, "was", err)
+  }
+
+}
+
 func Test_RemoveLabels_OK(t *testing.T) {
   globals := MakeTestGlobals(t)
   session := globals.MongoDB.Session.Copy()

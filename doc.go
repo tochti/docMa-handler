@@ -102,6 +102,22 @@ func (d *Doc) Remove(db *mgo.Database) error {
 func (d *Doc) AppendLabels(labels []Label, db *mgo.Database) error {
   doc := *d
   docsColl := db.C(DocsColl)
+
+  searchObj := bson.M{
+    "name": doc.Name,
+    "labels": bson.M{
+      "$in": labels,
+    },
+  }
+  query := docsColl.Find(searchObj)
+  n, err := query.Count()
+  if err != nil {
+    return err
+  }
+  if n > 0 {
+    return errors.New("Label already exists!")
+  }
+
   changeRequest := bson.M{"$addToSet": bson.M{
                              "labels": bson.M{"$each": labels},
                           }}
@@ -110,7 +126,7 @@ func (d *Doc) AppendLabels(labels []Label, db *mgo.Database) error {
               ReturnNew: true,
             }
   returnDoc := Doc{}
-  _, err := docsColl.Find(bson.M{"name": doc.Name}).Apply(change, &returnDoc)
+  _, err = docsColl.Find(bson.M{"name": doc.Name}).Apply(change, &returnDoc)
   if err != nil {
     return err
   }
