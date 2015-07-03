@@ -67,10 +67,15 @@ func SubList(a, b []string) []string {
   return res
 }
 
+// d have to be in following format ddmmyyyy 
 func ParseDate(d string) (time.Time, error) {
-    year, err := strconv.ParseInt(d[4:8], 10, 0)
-    month, err := strconv.ParseInt(d[2:4], 10, 0)
-    day, err := strconv.ParseInt(d[0:2], 10, 0)
+    if len(d) != 8 {
+      return GetZeroDate(), errors.New("Cannot parse date "+ d)
+    }
+
+    year, err := strconv.Atoi(d[4:8])
+    month, err := strconv.Atoi(d[2:4])
+    day, err := strconv.Atoi(d[0:2])
     if err != nil {
       return GetZeroDate(), err
     }
@@ -78,8 +83,8 @@ func ParseDate(d string) (time.Time, error) {
     if err != nil {
       return GetZeroDate(), err
     }
-    return time.Date(int(year), m, int(day), 0, 0, 0, 0, time.UTC), nil
 
+    return time.Date(year, m, day, 0, 0, 0, 0, time.UTC), nil
 }
 
 func ParseJSONRequest(c *gin.Context, s interface{}) error {

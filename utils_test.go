@@ -3,6 +3,7 @@ package bebber
 import (
   "os"
   "time"
+  "strings"
   "testing"
 )
 
@@ -68,3 +69,26 @@ func Test_ZeroDate(t *testing.T) {
   }
 }
 
+func Test_ParseDate_OK(t *testing.T) {
+  d, err := ParseDate("01012015")
+  if err != nil {
+    t.Fatal("Expect nil was", err)
+  }
+  if d.Day() != 1 {
+    t.Fatal("Expect 1 was", d.Day())
+  }
+  if d.Month() != time.January {
+    t.Fatal("Exepct", time.January, "was", d.Month())
+  }
+  if d.Year() != 2015 {
+    t.Fatal("Expect 2015 was", d.Year())
+  }
+}
+
+func Test_ParseDate_Fail(t *testing.T) {
+  _, err := ParseDate("112015")
+  errMsg := "Cannot parse date"
+  if strings.Contains(err.Error(), errMsg) == false {
+    t.Fatal("Expect", errMsg, "was", err)
+  }
+}
