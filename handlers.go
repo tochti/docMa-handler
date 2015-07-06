@@ -394,6 +394,17 @@ func AccProcessMakeHandler(c *gin.Context, g Globals) {
   db := session.DB(g.Config["MONGODB_DBNAME"])
   accProcessColl := db.C(AccProcessColl)
 
+  query := accProcessColl.Find(requestBody)
+  n, err := query.Count()
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+  if n > 0 {
+    MakeFailResponse(c, "Account process already exists!")
+    return
+  }
+
   docID := bson.NewObjectId()
   requestBody.ID = docID
   err = accProcessColl.Insert(requestBody)

@@ -919,6 +919,54 @@ func Test_AccProcessMakeHandler_OK(t *testing.T) {
 
 }
 
+func Test_AccProcessMakeHandler_AlreadyExistsFail(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  handler := gin.New()
+  handler.POST("/AccProcess",
+    MakeGlobalsHandler(AccProcessMakeHandler, globals))
+  requestBody := AccProcessMakeRequest{}
+  requestBodyJSON, err := json.Marshal(requestBody)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  request := TestRequest{
+    Body: string(requestBodyJSON),
+    Header: http.Header{},
+    Handler: handler,
+  }
+
+  response := request.Send("POST", "/AccProcess")
+  if response.Code != 200 {
+    t.Fatal("Expect status 200 was", response.Code)
+  }
+
+  response = request.Send("POST", "/AccProcess")
+
+  responseBody := FailResponse{}
+
+  tmp := []byte(response.Body.String())
+  err = json.Unmarshal(tmp, &responseBody)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if responseBody.Status != "fail" {
+    t.Fatal("Expect fail was", responseBody.Status)
+  }
+
+  errMsg := "Account process already exists!"
+  if strings.Contains(responseBody.Msg, errMsg) == false {
+    t.Fatal("Expect", errMsg, "was", responseBody.Msg)
+  }
+}
+
 func Test_FindAccProcessByDocNumberHandler_OK(t *testing.T) {
   globals := MakeTestGlobals(t)
   session := globals.MongoDB.Session.Copy()
