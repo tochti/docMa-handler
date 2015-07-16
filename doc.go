@@ -42,11 +42,15 @@ func (d *Doc) Change(changeDoc Doc, db *mgo.Database) error {
   doc := *d
   docsColl := db.C(DocsColl)
 
-  if changeDoc.Infos.IsEmpty() == false {
-      return errors.New("Not allowed to change infos!")
-  }
-
   setMap := bson.M{}
+  if changeDoc.Infos.IsEmpty() == false {
+    if changeDoc.Infos.DateOfScan.IsZero() == false {
+      return errors.New("Not allowed to change date of scan!")
+    }
+    if changeDoc.Infos.DateOfReceipt.IsZero() == false {
+      setMap["infos.dateofreceipt"] = changeDoc.Infos.DateOfReceipt
+    }
+  }
   if changeDoc.Name != "" {
     setMap["name"] = changeDoc.Name
   }

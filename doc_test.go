@@ -77,9 +77,14 @@ func Test_ChangeDoc_OK(t *testing.T) {
   db := session.DB(TestDBName)
   defer db.DropDatabase()
 
+  dateOfScan := time.Now()
+  dateOfReceipt := dateOfScan
   doc := Doc{
     Name: "changeme",
-    Infos: DocInfos{},
+    Infos: DocInfos{
+      DateOfScan: dateOfScan,
+      DateOfReceipt: dateOfReceipt,
+    },
     AccountData: DocAccountData{
       DocNumbers: []string{"2"},
       AccNumber: 1223,
@@ -93,6 +98,7 @@ func Test_ChangeDoc_OK(t *testing.T) {
   }
 
   d := time.Now()
+  newDateOfReceipt := dateOfReceipt.AddDate(0,0,2)
   accountData := DocAccountData{
     DocNumbers: []string{"1"},
     DocPeriod: DocPeriod{
@@ -101,9 +107,16 @@ func Test_ChangeDoc_OK(t *testing.T) {
     },
   }
   labels := []Label{"label1"}
-  changeDoc := Doc{Name: "nicer", Barcode: "barcode",
-                   AccountData: accountData, Labels: labels,
-                   Note: "note"}
+  changeDoc := Doc{
+    Infos: DocInfos{
+      DateOfReceipt: newDateOfReceipt,
+    },
+    Name: "nicer",
+    Barcode: "barcode",
+    AccountData: accountData,
+    Labels: labels,
+    Note: "note",
+  }
   err = doc.Change(changeDoc, db)
   if err != nil {
     t.Fatal(err.Error())
@@ -140,6 +153,14 @@ func Test_ChangeDoc_OK(t *testing.T) {
     t.Fatal("Expect note was", docUpdated.Note)
   }
 
+  if CompareDates(docUpdated.Infos.DateOfScan, dateOfScan) == false {
+    t.Fatal("Expect", dateOfScan, "was", docUpdated.Infos.DateOfScan)
+  }
+
+  if CompareDates(docUpdated.Infos.DateOfReceipt, newDateOfReceipt) == false {
+    t.Fatal("Exepct", newDateOfReceipt, "was", docUpdated.Infos.DateOfReceipt)
+  }
+
   if len(docUpdated.AccountData.DocNumbers) != 1 {
     t.Fatal("Expect 1 was", docUpdated.AccountData.DocNumbers)
   }
@@ -156,7 +177,7 @@ func Test_ChangeDoc_OK(t *testing.T) {
   }
 }
 
-func Test_ChangeDoc_InfoFail(t *testing.T) {
+func Test_ChangeDoc_DateOfScanFail(t *testing.T) {
   globals := MakeTestGlobals(t)
   session := globals.MongoDB.Session.Copy()
   defer session.Close()
@@ -177,14 +198,10 @@ func Test_ChangeDoc_InfoFail(t *testing.T) {
             }
   changeDoc := Doc{Name: "changeme", Infos: docInfos}
   err = doc.Change(changeDoc, db)
-  if err == nil {
-    t.Fatal("Expect Not allowed to change infos error was nil")
+  errMsg := "Not allowed to change date of scan!"
+  if strings.Contains(err.Error(), errMsg) == false {
+    t.Fatal("Expect", errMsg, "was", err.Error())
   }
-
-  if strings.Contains(err.Error(), "Not allowed to change infos") == false {
-    t.Fatal(err.Error())
-  }
-
 }
 
 func Test_RemoveDoc_OK(t *testing.T) {

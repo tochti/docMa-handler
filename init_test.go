@@ -121,3 +121,13 @@ func ImportAccProcess(db *mgo.Database, file string) error {
   return nil
 }
 
+func CompareDates(d1, d2 time.Time) bool {
+  if (d1.Day() == d2.Day()) &&
+    (d1.Month() == d2.Month()) &&
+    (d1.Year() == d2.Year()) {
+    return true
+  } else {
+    return false
+  }
+}
+
