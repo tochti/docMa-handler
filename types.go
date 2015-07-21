@@ -6,15 +6,23 @@ import (
 )
 
 const (
+  VarsColl = "Vars"
   DocsColl = "Docs"
   UsersColl= "Users"
   SessionsColl = "Sessions"
   AccProcessColl = "AccProcess"
   XSRFCookieName = "XSRF-TOKEN"
   TokenHeaderField = "X-XSRF-TOKEN"
+  DocNumberProposalName = "DocNumberProposal"
 )
 
 type Label string
+
+type DocNumberProposal int
+type VarDocNumberProposal struct {
+  Name string
+  Proposal DocNumberProposal
+}
 
 //
 //  Requests and Responses

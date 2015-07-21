@@ -14,7 +14,7 @@ import (
 
 const (
   TestDBHost = "127.0.0.1"
-  TestDBName = "bebber_test"
+  TestDBName = "docMa_test"
 )
 
 var testDir, err = filepath.Abs("./testdata")
