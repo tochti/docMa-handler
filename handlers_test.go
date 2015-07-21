@@ -460,7 +460,7 @@ func Test_DocChangeHandler_OK(t *testing.T) {
   docID := bson.NewObjectId()
   docTmp := Doc{
     ID: docID,
-    Name: "Touchme.txt", 
+    Name: "Touchme.txt",
     Barcode: "Codey",
     Note: "Nutty",
   }
@@ -1067,3 +1067,219 @@ func Test_FindAccProcessByAccNumberHandler_OK(t *testing.T) {
     t.Fatal("Expect", expectPostingText, "was", result.AccProcessList[0].PostingText)
   }
 }
+
+func Test_DocNumberProposalCurrHandler_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  expectProposal := 1234
+  docNumberProposal := DocNumberProposal(expectProposal)
+  err := docNumberProposal.Save(db)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  handler := gin.New()
+  handler.GET(
+    "/",
+    MakeGlobalsHandler(DocNumberProposalCurrHandler, globals),
+  )
+  header := http.Header{}
+
+  request := TestRequest{
+    Body: "",
+    Handler: handler,
+    Header: header,
+  }
+  response := request.Send("GET", "/")
+
+  body := response.Body.String()
+  bodyJSON := DocNumberProposalCurrResponse{}
+  err = json.Unmarshal([]byte(body), &bodyJSON)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if "success" != bodyJSON.Status {
+    t.Fatal("Expect success was", bodyJSON.Status)
+  }
+
+  if expectProposal != bodyJSON.Proposal {
+    t.Fatal("Expect", expectProposal, "was", bodyJSON.Proposal)
+  }
+
+}
+
+func Test_DocNumberProposalCurrHandler_NoneFail(t *testing.T) {
+  globals := MakeTestGlobals(t)
+
+  handler := gin.New()
+  handler.GET(
+    "/",
+    MakeGlobalsHandler(DocNumberProposalCurrHandler, globals),
+  )
+  header := http.Header{}
+
+  request := TestRequest{
+    Body: "",
+    Handler: handler,
+    Header: header,
+  }
+  response := request.Send("GET", "/")
+
+  expectBody := `{"Status":"fail","Msg":"Cannot find DocNumberProposal"}` +
+    "\n"
+  body := response.Body.String()
+
+  if expectBody != body {
+    t.Fatal("Expect", expectBody, "was", body)
+  }
+
+}
+
+func Test_DocNumberProposalChangeHandler_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  docNumberProposal := DocNumberProposal(123)
+  err := docNumberProposal.Save(db)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  handler := gin.New()
+  handler.PUT(
+    "/",
+    MakeGlobalsHandler(DocNumberProposalChangeHandler, globals),
+  )
+  header := http.Header{}
+
+  expectProposal := 1234
+  requestBody, err := json.Marshal(
+    DocNumberProposalChangeRequest{expectProposal},
+  )
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+  request := TestRequest{
+    Body: string(requestBody),
+    Handler: handler,
+    Header: header,
+  }
+  response := request.Send("PUT", "/")
+
+  body := response.Body.String()
+  bodyJSON := SuccessResponse{}
+  err = json.Unmarshal([]byte(body), &bodyJSON)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if "success" != bodyJSON.Status {
+    t.Fatal("Expect success was", bodyJSON.Status)
+  }
+
+  no, err := docNumberProposal.Curr(db)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if expectProposal != int(no) {
+    t.Fatal("Expect", expectProposal, "was", int(no))
+  }
+}
+
+func Test_DocNumberProposalChangeHandler_WrongTypeFail(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  docNumberProposal := DocNumberProposal(123)
+  err := docNumberProposal.Save(db)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  handler := gin.New()
+  handler.PUT(
+    "/",
+    MakeGlobalsHandler(DocNumberProposalChangeHandler, globals),
+  )
+  header := http.Header{}
+
+  request := TestRequest{
+    Body: `{"Proposal": "DE1234"}`,
+    Handler: handler,
+    Header: header,
+  }
+  response := request.Send("PUT", "/")
+
+  body := response.Body.String()
+  bodyJSON := FailResponse{}
+  err = json.Unmarshal([]byte(body), &bodyJSON)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if "fail" != bodyJSON.Status {
+    t.Fatal("Expect fail was", bodyJSON.Status)
+  }
+
+  errMsg := "json: cannot unmarshal string into Go value of type int"
+  if errMsg != bodyJSON.Msg {
+    t.Fatal("Expect", errMsg, "was", bodyJSON.Msg)
+  }
+}
+func Test_DocNumberProposalNextHandler_OK(t *testing.T) {
+  globals := MakeTestGlobals(t)
+  session := globals.MongoDB.Session.Copy()
+  defer session.Close()
+  db := session.DB(TestDBName)
+  defer db.DropDatabase()
+
+  docNumberProposal := DocNumberProposal(123)
+  err := docNumberProposal.Save(db)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  handler := gin.New()
+  handler.GET(
+    "/",
+    MakeGlobalsHandler(DocNumberProposalNextHandler, globals),
+  )
+  header := http.Header{}
+
+  request := TestRequest{
+    Body: "",
+    Handler: handler,
+    Header: header,
+  }
+  response := request.Send("GET", "/")
+
+  body := response.Body.String()
+  bodyJSON := DocNumberProposalNextResponse{}
+  err = json.Unmarshal([]byte(body), &bodyJSON)
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if "success" != bodyJSON.Status {
+    t.Fatal("Expect success was", bodyJSON.Status)
+  }
+
+  expectProposal := 124
+  if expectProposal != bodyJSON.Proposal {
+    t.Fatal("Expect", expectProposal, "was", bodyJSON.Proposal)
+  }
+}
+
+

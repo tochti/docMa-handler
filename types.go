@@ -48,6 +48,9 @@ type DocAppendDocNumbersRequest struct {
 
 type AccProcessMakeRequest AccProcess
 
+type DocNumberProposalChangeRequest struct {
+  Proposal int
+}
 
 type SuccessResponse struct {
   Status string
@@ -92,6 +95,17 @@ type AccProcessFindByAccNumberResponse struct {
   Status string
   AccProcessList []AccProcess
 }
+
+type DocNumberProposalCurrResponse struct {
+  Status string
+  Proposal int
+}
+
+type DocNumberProposalNextResponse struct {
+  Status string
+  Proposal int
+}
+
 
 //
 // Authentication

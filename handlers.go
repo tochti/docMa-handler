@@ -476,3 +476,70 @@ func AccProcessFindByAccNumberHandler(c *gin.Context, g Globals) {
   }
   c.JSON(http.StatusOK, response)
 }
+
+func DocNumberProposalCurrHandler(c *gin.Context, g Globals) {
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+  db := session.DB(g.Config["MONGODB_DBNAME"])
+
+  var proposal DocNumberProposal
+  no, err := proposal.Curr(db)
+  if err != nil {
+    if strings.Contains(err.Error(), "not found") {
+      errMsg := "Cannot find DocNumberProposal"
+      MakeFailResponse(c, errMsg)
+      return
+    } else {
+      MakeFailResponse(c, err.Error())
+      return
+    }
+  }
+
+  c.JSON(
+    http.StatusOK,
+    DocNumberProposalCurrResponse{
+      Status: "success",
+      Proposal: int(no),
+    },
+  )
+}
+
+func DocNumberProposalChangeHandler(c *gin.Context, g Globals) {
+  requestBody := DocNumberProposalChangeRequest{}
+  err := ParseJSONRequest(c, &requestBody)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+  db := session.DB(g.Config["MONGODB_DBNAME"])
+
+  proposal := DocNumberProposal(requestBody.Proposal)
+  err = proposal.Save(db)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  c.JSON(http.StatusOK, SuccessResponse{"success"})
+}
+
+func DocNumberProposalNextHandler(c *gin.Context, g Globals) {
+  session := g.MongoDB.Session.Copy()
+  defer session.Close()
+  db := session.DB(g.Config["MONGODB_DBNAME"])
+
+  var proposal DocNumberProposal
+  next, err := proposal.Next(db)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+
+  c.JSON(
+    http.StatusOK,
+    DocNumberProposalNextResponse{"success", int(next)},
+  )
+}
