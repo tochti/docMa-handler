@@ -106,6 +106,11 @@ type DocNumberProposalNextResponse struct {
   Proposal int
 }
 
+type SearchDocsResponse struct {
+  Status string
+  Result []Doc
+}
+
 
 //
 // Authentication

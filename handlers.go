@@ -138,7 +138,7 @@ func UserHandler(c *gin.Context, globals Globals) {
   c.JSON(http.StatusOK, user)
 }
 
-func SearchHandler(c *gin.Context, g Globals) {
+func SearchDocsHandler(c *gin.Context, g Globals) {
   session := g.MongoDB.Session.Copy()
   defer session.Close()
   db := session.DB(g.Config["MONGODB_DBNAME"])
@@ -146,8 +146,16 @@ func SearchHandler(c *gin.Context, g Globals) {
   buf := new(bytes.Buffer)
   buf.ReadFrom(c.Request.Body)
   body := buf.String()
-  result := Search(body, db)
-  c.JSON(http.StatusOK, result)
+  result, err := SearchDocs(body, db)
+  if err != nil {
+    MakeFailResponse(c, err.Error())
+    return
+  }
+  response := SearchDocsResponse{
+    Status: "success",
+    Result: result,
+  }
+  c.JSON(http.StatusOK, response)
 }
 
 func DocMakeHandler(c *gin.Context, g Globals) {

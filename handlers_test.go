@@ -260,29 +260,42 @@ func Test_UserHandler_OK(t *testing.T) {
 
 }
 
-func Test_SearchHandler_OK(t *testing.T) {
+func Test_SearchDocsHandler_OK(t *testing.T) {
   globals := MakeTestGlobals(t)
   defer globals.MongoDB.Session.Close()
 
   db := globals.MongoDB.Session.DB(TestDBName)
   defer db.DropDatabase()
 
-  doc := bson.M{"Blue": "House"}
+  doc := Doc{
+    Name: "AWS",
+    Labels: []Label{Label("l1"), Label("l2")},
+  }
   testColl := db.C(DocsColl)
   testColl.Insert(doc)
 
   handler := gin.New()
-  handler.POST("/", MakeGlobalsHandler(SearchHandler, globals))
+  handler.POST("/", MakeGlobalsHandler(SearchDocsHandler, globals))
   request := TestRequest{
-    Body: `{"Blue": "House"}`,
+    Body: `{"Labels": "l1"}`,
     Header: http.Header{},
     Handler: handler,
   }
-  response := request.SendWithToken("POST", "/", "123")
+  response := request.Send("POST", "/")
 
-  expect := `[{"Blue": "House"}]`
-  if strings.Contains(response.Body.String(), expect) {
-    t.Fatal("Expect", expect, "was", response.Body.String())
+  body := SearchDocsResponse{}
+  err := json.Unmarshal([]byte(response.Body.String()), &body)
+
+  if err != nil {
+    t.Fatal(err.Error())
+  }
+
+  if body.Status != "success" {
+    t.Fatal("Expect success was", body.Status)
+  }
+
+  if doc.Name != body.Result[0].Name {
+    t.Fatal("Expect", doc.Name, "was", body.Result[0].Name)
   }
 
 }
