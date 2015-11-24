@@ -1,128 +1,128 @@
 package bebber
 
 import (
-  "os"
-  "io"
-  "time"
-  "regexp"
-  "errors"
-  "strconv"
-  "encoding/csv"
+	"encoding/csv"
+	"errors"
+	"io"
+	"os"
+	"regexp"
+	"strconv"
+	"time"
 
-  "gopkg.in/mgo.v2"
-  "gopkg.in/mgo.v2/bson"
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func ReadAccProcessFile(fName string) ([]AccProcess, error) {
-  f, err := os.Open(fName)
-  if err != nil  {
-    return []AccProcess{}, err
-  }
-  reader := csv.NewReader(f)
-  reader.Comma = ';'
-  reader.FieldsPerRecord = 13
-  // Skip Headline
-  reader.Read()
-  accRecords := []AccProcess{}
-  for {
-    record, err := UnmarshalAccProcess(reader)
-    if err == io.EOF {
-      break
-    } else if err != nil {
-      return []AccProcess{}, err
-    } else {
-      // Part of a statement skip this
-      if (record.DocDate.IsZero() == true) &&
-         (record.DateOfEntry.IsZero() == true) &&
-         (record.DocNumberRange == "") &&
-         (record.DocNumber == "") {
-           continue
-      }
-      accRecords = append(accRecords, record)
-    }
-  }
-  return accRecords, nil
+	f, err := os.Open(fName)
+	if err != nil {
+		return []AccProcess{}, err
+	}
+	reader := csv.NewReader(f)
+	reader.Comma = ';'
+	reader.FieldsPerRecord = 13
+	// Skip Headline
+	reader.Read()
+	accRecords := []AccProcess{}
+	for {
+		record, err := UnmarshalAccProcess(reader)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return []AccProcess{}, err
+		} else {
+			// Part of a statement skip this
+			if (record.DocDate.IsZero() == true) &&
+				(record.DateOfEntry.IsZero() == true) &&
+				(record.DocNumberRange == "") &&
+				(record.DocNumber == "") {
+				continue
+			}
+			accRecords = append(accRecords, record)
+		}
+	}
+	return accRecords, nil
 }
 
 func UnmarshalAccProcess(reader *csv.Reader) (AccProcess, error) {
-  s, err := reader.Read()
-  if err != nil {
-    return AccProcess{}, err
-  }
+	s, err := reader.Read()
+	if err != nil {
+		return AccProcess{}, err
+	}
 
-  accRecord := AccProcess{}
-  /* 
-  Sind die ersten vier Felder leer ist der Eintrag ein Teil eines
-  Kontoauszugs das heißt die in diesem if-Block zugewiesenen Felder können nicht 
-  zugewiesen werden, dies ist jedoch kein Fehler alle 
-  restliche vorhanden Daten werden zugewisen was damit passiert 
-  muss die aufrufende Funktion bestimmen. 
-  */
-  if (s[0] == "") && (s[1] == "") && (s[2] == "") && (s[3] == "") {
-    accRecord.DocDate = GetZeroDate()
-    accRecord.DateOfEntry = GetZeroDate()
-    accRecord.DocNumberRange = ""
-    accRecord.DocNumber = ""
-  } else {
-    date, err := ParseGermanDate(s[0], ".")
-    if err != nil {
-      return AccProcess{},errors.New("Cannot make DocDate")
-    }
-    accRecord.DocDate = date
+	accRecord := AccProcess{}
+	/*
+	  Sind die ersten vier Felder leer ist der Eintrag ein Teil eines
+	  Kontoauszugs das heißt die in diesem if-Block zugewiesenen Felder können nicht
+	  zugewiesen werden, dies ist jedoch kein Fehler alle
+	  restliche vorhanden Daten werden zugewisen was damit passiert
+	  muss die aufrufende Funktion bestimmen.
+	*/
+	if (s[0] == "") && (s[1] == "") && (s[2] == "") && (s[3] == "") {
+		accRecord.DocDate = GetZeroDate()
+		accRecord.DateOfEntry = GetZeroDate()
+		accRecord.DocNumberRange = ""
+		accRecord.DocNumber = ""
+	} else {
+		date, err := ParseGermanDate(s[0], ".")
+		if err != nil {
+			return AccProcess{}, errors.New("Cannot make DocDate")
+		}
+		accRecord.DocDate = date
 
-    date, err = ParseGermanDate(s[1], ".")
-    if err != nil {
-      return AccProcess{},errors.New("Cannot make DateOfEntry")
-    }
-    accRecord.DateOfEntry = date
+		date, err = ParseGermanDate(s[1], ".")
+		if err != nil {
+			return AccProcess{}, errors.New("Cannot make DateOfEntry")
+		}
+		accRecord.DateOfEntry = date
 
-    accRecord.DocNumberRange = s[2]
-    accRecord.DocNumber = s[3]
-  }
+		accRecord.DocNumberRange = s[2]
+		accRecord.DocNumber = s[3]
+	}
 
-  accRecord.PostingText = s[4]
+	accRecord.PostingText = s[4]
 
-  fl, err := ParseFloatComma(s[5])
-  if err != nil {
-    errMsg := "Posted amount have to be a float - "+ err.Error()
-    return AccProcess{}, errors.New(errMsg)
-  }
-  accRecord.AmountPosted = fl
+	fl, err := ParseFloatComma(s[5])
+	if err != nil {
+		errMsg := "Posted amount have to be a float - " + err.Error()
+		return AccProcess{}, errors.New(errMsg)
+	}
+	accRecord.AmountPosted = fl
 
-  in, err := ParseAccInt(s[6])
-  if err != nil {
-    errMsg := "Debit account have to be a integer - "+ err.Error()
-    return AccProcess{}, errors.New(errMsg)
-  }
-  accRecord.DebitAcc = in
+	in, err := ParseAccInt(s[6])
+	if err != nil {
+		errMsg := "Debit account have to be a integer - " + err.Error()
+		return AccProcess{}, errors.New(errMsg)
+	}
+	accRecord.DebitAcc = in
 
-  in, err = ParseAccInt(s[7])
-  if err != nil {
-    errMsg := "Credit account have to be a integer - "+ err.Error()
-    return AccProcess{}, errors.New(errMsg)
-  }
-  accRecord.CreditAcc = in
+	in, err = ParseAccInt(s[7])
+	if err != nil {
+		errMsg := "Credit account have to be a integer - " + err.Error()
+		return AccProcess{}, errors.New(errMsg)
+	}
+	accRecord.CreditAcc = in
 
-  in, err = ParseAccInt(s[8])
-  if err != nil {
-    errMsg := "Tax code have to be a integer - "+ err.Error()
-    return AccProcess{}, errors.New(errMsg)
-  }
-  accRecord.TaxCode = in
+	in, err = ParseAccInt(s[8])
+	if err != nil {
+		errMsg := "Tax code have to be a integer - " + err.Error()
+		return AccProcess{}, errors.New(errMsg)
+	}
+	accRecord.TaxCode = in
 
-  accRecord.CostUnit1 = s[9]
-  accRecord.CostUnit2 = s[10]
+	accRecord.CostUnit1 = s[9]
+	accRecord.CostUnit2 = s[10]
 
-  fl, err = ParseFloatComma(s[11])
-  if err != nil {
-    errMsg := "Amount posted have to be a float - "+ err.Error()
-    return AccProcess{}, errors.New(errMsg)
-  }
-  accRecord.AmountPostedEuro = fl
+	fl, err = ParseFloatComma(s[11])
+	if err != nil {
+		errMsg := "Amount posted have to be a float - " + err.Error()
+		return AccProcess{}, errors.New(errMsg)
+	}
+	accRecord.AmountPostedEuro = fl
 
-  accRecord.Currency = s[12]
+	accRecord.Currency = s[12]
 
-  return accRecord, nil
+	return accRecord, nil
 }
 
 /*
@@ -362,114 +362,114 @@ func (fd FileDocs) FindFile(query FileDoc) FileDocs {
 */
 
 func ParseAccInt(s string) (int, error) {
-  if s == "" {
-    return -1, nil
-  }
+	if s == "" {
+		return -1, nil
+	}
 
-  in, err := strconv.Atoi(s)
-  if err != nil {
-    return 0, err
-  }
+	in, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, err
+	}
 
-  return in, nil
+	return in, nil
 }
 
 func (a AccProcess) IsEmpty() bool {
-  if (a.DocDate.IsZero()) &&
-    (a.DateOfEntry.IsZero()) &&
-    (a.DocNumberRange == "") &&
-    (a.DocNumber == "") &&
-    (a.PostingText == "") &&
-    (a.AmountPosted == 0) &&
-    (a.DebitAcc == 0) &&
-    (a.CreditAcc == 0) &&
-    (a.TaxCode == 0) &&
-    (a.CostUnit1 == "") &&
-    (a.CostUnit2 == "") &&
-    (a.AmountPostedEuro == 0.0) &&
-    (a.Currency == "") {
-      return true
-  } else {
-    return false
-  }
+	if (a.DocDate.IsZero()) &&
+		(a.DateOfEntry.IsZero()) &&
+		(a.DocNumberRange == "") &&
+		(a.DocNumber == "") &&
+		(a.PostingText == "") &&
+		(a.AmountPosted == 0) &&
+		(a.DebitAcc == 0) &&
+		(a.CreditAcc == 0) &&
+		(a.TaxCode == 0) &&
+		(a.CostUnit1 == "") &&
+		(a.CostUnit2 == "") &&
+		(a.AmountPostedEuro == 0.0) &&
+		(a.Currency == "") {
+		return true
+	} else {
+		return false
+	}
 }
 
 func SplitDocNumber(docNumber string) (string, string, error) {
-  reStr := "([[:alpha:]]*)(\\d+)"
-  re, err := regexp.Compile(reStr)
-  if err != nil {
-    return "", "", err
-  }
-  results := re.FindStringSubmatch(docNumber)
-  l := len(results)
-  if (l != 2) && (l != 3) {
-    err := errors.New("Invalid docnumber!")
-    return "", "", err
-  }
+	reStr := "([[:alpha:]]*)(\\d+)"
+	re, err := regexp.Compile(reStr)
+	if err != nil {
+		return "", "", err
+	}
+	results := re.FindStringSubmatch(docNumber)
+	l := len(results)
+	if (l != 2) && (l != 3) {
+		err := errors.New("Invalid docnumber!")
+		return "", "", err
+	}
 
-  rang := ""
-  number := ""
+	rang := ""
+	number := ""
 
-  switch l {
-    case 2:
-      number = results[1]
-    case 3:
-      rang = results[1]
-      number = results[2]
-  }
+	switch l {
+	case 2:
+		number = results[1]
+	case 3:
+		rang = results[1]
+		number = results[2]
+	}
 
-  return rang, number, nil
+	return rang, number, nil
 }
 
 func FindAccProcessByDocNumbers(db *mgo.Database, docNumbers []string) ([]AccProcess, error) {
-  docNumberSearchObj := []bson.M{}
-  for _,v := range docNumbers {
-    rang, number, err := SplitDocNumber(v)
-    if err != nil {
-      return []AccProcess{}, err
-    }
-    obj := bson.M{
-      "docnumberrange": rang,
-      "docnumber": number,
-    }
-    docNumberSearchObj = append(docNumberSearchObj, obj)
-  }
+	docNumberSearchObj := []bson.M{}
+	for _, v := range docNumbers {
+		rang, number, err := SplitDocNumber(v)
+		if err != nil {
+			return []AccProcess{}, err
+		}
+		obj := bson.M{
+			"docnumberrange": rang,
+			"docnumber":      number,
+		}
+		docNumberSearchObj = append(docNumberSearchObj, obj)
+	}
 
-  searchObj := bson.M{"$or":docNumberSearchObj}
+	searchObj := bson.M{"$or": docNumberSearchObj}
 
-  accProcessColl := db.C(AccProcessColl)
-  query := accProcessColl.Find(searchObj)
-  accProcess := []AccProcess{}
-  err := query.All(&accProcess)
-  if err != nil {
-    return []AccProcess{}, err
-  }
+	accProcessColl := db.C(AccProcessColl)
+	query := accProcessColl.Find(searchObj)
+	accProcess := []AccProcess{}
+	err := query.All(&accProcess)
+	if err != nil {
+		return []AccProcess{}, err
+	}
 
-  return accProcess, nil
+	return accProcess, nil
 }
 
 func FindAccProcessByAccNumber(db *mgo.Database, accNumber int, from time.Time, to time.Time) ([]AccProcess, error) {
 
-  searchObj := bson.M{
-    "docdate": bson.M{
-      "$gte": from,
-      "$lte": to,
-    },
-    "$or": []bson.M{
-      bson.M{"creditacc": accNumber},
-      bson.M{"debitacc": accNumber},
-    },
-  }
+	searchObj := bson.M{
+		"docdate": bson.M{
+			"$gte": from,
+			"$lte": to,
+		},
+		"$or": []bson.M{
+			bson.M{"creditacc": accNumber},
+			bson.M{"debitacc": accNumber},
+		},
+	}
 
-  accProcessColl := db.C(AccProcessColl)
-  accProcessResult := []AccProcess{}
-  query := accProcessColl.Find(searchObj)
+	accProcessColl := db.C(AccProcessColl)
+	accProcessResult := []AccProcess{}
+	query := accProcessColl.Find(searchObj)
 
-  err := query.All(&accProcessResult)
-  if err != nil {
-    return []AccProcess{}, err
-  }
+	err := query.All(&accProcessResult)
+	if err != nil {
+		return []AccProcess{}, err
+	}
 
-  return accProcessResult, nil
+	return accProcessResult, nil
 
 }

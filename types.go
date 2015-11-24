@@ -1,27 +1,27 @@
 package bebber
 
 import (
-  "time"
-  "gopkg.in/mgo.v2/bson"
+	"gopkg.in/mgo.v2/bson"
+	"time"
 )
 
 const (
-  VarsColl = "Vars"
-  DocsColl = "Docs"
-  UsersColl= "Users"
-  SessionsColl = "Sessions"
-  AccProcessColl = "AccProcess"
-  XSRFCookieName = "XSRF-TOKEN"
-  TokenHeaderField = "X-XSRF-TOKEN"
-  DocNumberProposalName = "DocNumberProposal"
+	VarsColl              = "Vars"
+	DocsColl              = "Docs"
+	UsersColl             = "Users"
+	SessionsColl          = "Sessions"
+	AccProcessColl        = "AccProcess"
+	XSRFCookieName        = "XSRF-TOKEN"
+	TokenHeaderField      = "X-XSRF-TOKEN"
+	DocNumberProposalName = "DocNumberProposal"
 )
 
 type Label string
 
 type DocNumberProposal int
 type VarDocNumberProposal struct {
-  Name string
-  Proposal DocNumberProposal
+	Name     string
+	Proposal DocNumberProposal
 }
 
 //
@@ -32,104 +32,103 @@ type DocMakeRequest Doc
 type DocChangeRequest Doc
 
 type DocRenameRequest struct {
-  Name string
-  NewName string
+	Name    string
+	NewName string
 }
 
 type DocAppendLabelsRequest struct {
-  Name string
-  Labels []Label
+	Name   string
+	Labels []Label
 }
 
 type DocAppendDocNumbersRequest struct {
-  Name string
-  DocNumbers []string
+	Name       string
+	DocNumbers []string
 }
 
 type AccProcessMakeRequest AccProcess
 
 type DocNumberProposalChangeRequest struct {
-  Proposal int
+	Proposal int
 }
 
 type SuccessResponse struct {
-  Status string
+	Status string
 }
 
 type FailResponse struct {
-  Status string
-  Msg string
+	Status string
+	Msg    string
 }
 
 type DocMakeResponse struct {
-  Status string
-  Id bson.ObjectId
+	Status string
+	Id     bson.ObjectId
 }
 
 type DocReadResponse struct {
-  Status string
-  Doc Doc
+	Status string
+	Doc    Doc
 }
 
 type MongoDBSuccessResponse struct {
-  Status string
-  DocID string
+	Status string
+	DocID  string
 }
 
 type AccProcessReadResponse struct {
-  Status string
-  AccProcess []AccProcessDocRef
+	Status     string
+	AccProcess []AccProcessDocRef
 }
 
 type AccProcessMakeResponse struct {
-  Status string
-  DocID string
+	Status string
+	DocID  string
 }
 
 type AccProcessFindByDocNumberResponse struct {
-  Status string
-  AccProcessList []AccProcess
+	Status         string
+	AccProcessList []AccProcess
 }
 
 type AccProcessFindByAccNumberResponse struct {
-  Status string
-  AccProcessList []AccProcess
+	Status         string
+	AccProcessList []AccProcess
 }
 
 type DocNumberProposalCurrResponse struct {
-  Status string
-  Proposal int
+	Status   string
+	Proposal int
 }
 
 type DocNumberProposalNextResponse struct {
-  Status string
-  Proposal int
+	Status   string
+	Proposal int
 }
 
 type SearchDocsResponse struct {
-  Status string
-  Result []Doc
+	Status string
+	Result []Doc
 }
-
 
 //
 // Authentication
 //
 
 type User struct {
-  Username string
-  Password string
+	Username string
+	Password string
 }
 
 type LoginData struct {
-  Username string
-  Password string
+	Username string
+	Password string
 }
 
 type UserSession struct {
-  Token string
-  User string
-  Expires time.Time
+	Token   string
+	User    string
+	Expires time.Time
 }
 
 //
@@ -137,25 +136,25 @@ type UserSession struct {
 //
 
 type AccProcess struct {
-  ID bson.ObjectId `bson:"_id,omitempty"`
-  DocDate time.Time
-  DateOfEntry time.Time
-  DocNumberRange string
-  DocNumber string
-  PostingText string
-  AmountPosted float64
-  DebitAcc int
-  CreditAcc int
-  TaxCode int
-  CostUnit1 string
-  CostUnit2 string
-  AmountPostedEuro float64
-  Currency string
+	ID               bson.ObjectId `bson:"_id,omitempty"`
+	DocDate          time.Time
+	DateOfEntry      time.Time
+	DocNumberRange   string
+	DocNumber        string
+	PostingText      string
+	AmountPosted     float64
+	DebitAcc         int
+	CreditAcc        int
+	TaxCode          int
+	CostUnit1        string
+	CostUnit2        string
+	AmountPostedEuro float64
+	Currency         string
 }
 
 type AccProcessDocRef struct {
-  AccProcess AccProcess
-  Doc Doc
+	AccProcess AccProcess
+	Doc        Doc
 }
 
 //
@@ -163,30 +162,29 @@ type AccProcessDocRef struct {
 //
 
 type DocInfos struct {
-  DateOfScan time.Time
-  DateOfReceipt time.Time
+	DateOfScan    time.Time
+	DateOfReceipt time.Time
 }
 
 type DocNote string
 
 type DocAccountData struct {
-  DocNumbers []string
-  DocPeriod DocPeriod
-  AccNumber int
+	DocNumbers []string
+	DocPeriod  DocPeriod
+	AccNumber  int
 }
 
 type DocPeriod struct {
-  From time.Time
-  To time.Time
+	From time.Time
+	To   time.Time
 }
 
 type Doc struct {
-  ID bson.ObjectId `bson:"_id,omitempty"`
-  Name string
-  Barcode string
-  Infos DocInfos
-  Note DocNote
-  AccountData DocAccountData
-  Labels []Label
+	ID          bson.ObjectId `bson:"_id,omitempty"`
+	Name        string
+	Barcode     string
+	Infos       DocInfos
+	Note        DocNote
+	AccountData DocAccountData
+	Labels      []Label
 }
-
