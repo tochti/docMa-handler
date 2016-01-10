@@ -6,8 +6,11 @@ var (
 	LabelsTable = "labels"
 )
 
-func AddTables(db *gorp.DbMap) *gorp.TableMap {
-	return db.AddTableWithName(Label{}, LabelsTable).SetKeys(true, "id")
+func AddTables(db *gorp.DbMap) {
+	db.AddTableWithName(Label{}, LabelsTable).
+		SetKeys(true, "id").
+		ColMap("name").
+		SetUnique(true)
 }
 
 func CreateTables(db *gorp.DbMap) error {

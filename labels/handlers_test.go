@@ -139,7 +139,6 @@ func initTestDB(t *testing.T) *gorp.DbMap {
 	setenvTest()
 
 	db := bebber.InitMySQL()
-	AddTables(db)
 
 	err := db.DropTablesIfExists()
 	if err != nil {
