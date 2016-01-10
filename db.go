@@ -5,6 +5,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
+	"github.com/tochti/docMa-handler/labels"
 	"github.com/tochti/gin-gum/gumspecs"
 	"gopkg.in/gorp.v1"
 )
@@ -25,6 +26,8 @@ func InitMySQL() *gorp.DbMap {
 			"UTF8",
 		},
 	}
+
+	labels.AddTables(db)
 
 	return db
 }
