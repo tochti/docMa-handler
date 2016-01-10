@@ -5,12 +5,10 @@ import (
 	"os"
 	"testing"
 
-	_ "github.com/go-sql-driver/mysql"
-
 	"gopkg.in/gorp.v1"
 
 	"github.com/gin-gonic/gin"
-	"github.com/tochti/gin-gum/gumspecs"
+	"github.com/tochti/docMa-handler"
 	"github.com/tochti/gin-gum/gumtest"
 	"github.com/tochti/gin-gum/gumwrap"
 )
@@ -139,16 +137,11 @@ func setenvTest() {
 
 func initTestDB(t *testing.T) *gorp.DbMap {
 	setenvTest()
-	mysql := gumspecs.ReadMySQL()
 
-	sqlDB, err := mysql.DB()
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := bebber.InitMySQL()
+	AddTables(db)
 
-	db := InitGorp(sqlDB)
-
-	err = db.DropTablesIfExists()
+	err := db.DropTablesIfExists()
 	if err != nil {
 		t.Fatal(err)
 	}
