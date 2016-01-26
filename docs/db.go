@@ -8,7 +8,8 @@ func AddTables(db *gorp.DbMap) {
 	tMap.ColMap("name").SetUnique(true).SetNotNull(true)
 
 	db.AddTableWithName(DocAccountData{}, DocAccountDataTable).
-		SetKeys(true, "id")
+		SetKeys(false, "doc_id")
 
-	db.AddTableWithName(DocNumber{}, DocNumbersTable).SetKeys(true, "id")
+	db.AddTableWithName(DocNumber{}, DocNumbersTable).
+		SetKeys(false, "doc_id", "number")
 }

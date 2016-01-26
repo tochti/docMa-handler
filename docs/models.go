@@ -18,15 +18,13 @@ type Doc struct {
 }
 
 type DocAccountData struct {
-	ID            int64     `db:"id" json:"id"`
-	DocID         int64     `db:"doc_id" json:"doc_id"`
+	DocID         int64     `db:"doc_id" json:"doc_id" valid:"required,gt=0"`
 	PeriodFrom    time.Time `db:"period_from" json:"period_from"`
 	PeriodTo      time.Time `db:"period_to" json:"period_to"`
 	AccountNumber int       `db:"account_number" json:"account_number"`
 }
 
 type DocNumber struct {
-	ID     int64  `db:"id" json:"id"`
-	DocID  int64  `db:"doc_id" json:"doc_id" valid="required"`
-	Number string `db:"number" json:"number" valid="required"`
+	DocID  int64  `db:"doc_id" json:"doc_id" valid:"required,gt=0"`
+	Number string `db:"number" json:"number" valid:"required"`
 }

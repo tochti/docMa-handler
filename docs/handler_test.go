@@ -224,3 +224,198 @@ func Test_UpdateDocNameHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func Test_CreateDocNumber(t *testing.T) {
+	db := initDB(t)
+
+	doc := DocNumber{
+		DocID:  1,
+		Number: "1",
+	}
+
+	body, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := gin.New()
+	r.POST("/", gumwrap.Gorp(CreateDocNumberHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("POST", "/", string(body))
+	expectResp := gumtest.JSONResponse{http.StatusCreated, doc}
+	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+		t.Fatal(err)
+	}
+
+}
+
+func Test_CreateDocNumber_MissingDocID(t *testing.T) {
+	db := initDB(t)
+
+	body := `{"number":"1"}`
+
+	r := gin.New()
+	r.POST("/", gumwrap.Gorp(CreateDocNumberHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("POST", "/", body)
+	expectResp := gumtest.JSONResponse{
+		http.StatusBadRequest,
+		gumrest.ErrorMessage{
+			Message: "Key: 'DocNumber.DocID' Error:Field validation for 'DocID' failed on the 'required' tag",
+		},
+	}
+	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+		t.Fatal(err)
+	}
+
+}
+
+func Test_CreateDocNumber_MissingNumber(t *testing.T) {
+	db := initDB(t)
+
+	body := `{"doc_id": 1}`
+
+	r := gin.New()
+	r.POST("/", gumwrap.Gorp(CreateDocNumberHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("POST", "/", body)
+	expectResp := gumtest.JSONResponse{
+		http.StatusBadRequest,
+		gumrest.ErrorMessage{
+			Message: "Key: 'DocNumber.Number' Error:Field validation for 'Number' failed on the 'required' tag",
+		},
+	}
+	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+		t.Fatal(err)
+	}
+
+}
+
+func Test_DeleteDocNumber(t *testing.T) {
+	db := initDB(t)
+
+	docNumber := DocNumber{
+		DocID:  2,
+		Number: "1",
+	}
+
+	err := db.Insert(&docNumber)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := gin.New()
+	r.DELETE("/:id/:number", gumwrap.Gorp(DeleteDocNumberHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("DELETE", "/2/1", "")
+	expectResp := gumtest.JSONResponse{http.StatusOK, nil}
+
+	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+		t.Fatal(err)
+	}
+
+}
+
+func Test_CreateDocAccountDataHandler(t *testing.T) {
+	db := initDB(t)
+
+	accountData := DocAccountData{
+		DocID:         2,
+		PeriodFrom:    gumtest.SimpleNow(),
+		PeriodTo:      gumtest.SimpleNow(),
+		AccountNumber: 2,
+	}
+
+	body, err := json.Marshal(accountData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := gin.New()
+	r.POST("/", gumwrap.Gorp(CreateDocAccountDataHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("POST", "/", string(body))
+	expectResp := gumtest.JSONResponse{http.StatusCreated, accountData}
+	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+		t.Fatal(err)
+	}
+
+}
+
+func Test_CreateDocAccountDataHandler_MissingDocID(t *testing.T) {
+	db := initDB(t)
+
+	accountData := DocAccountData{
+		PeriodFrom:    gumtest.SimpleNow(),
+		PeriodTo:      gumtest.SimpleNow(),
+		AccountNumber: 2,
+	}
+
+	body, err := json.Marshal(accountData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := gin.New()
+	r.POST("/", gumwrap.Gorp(CreateDocAccountDataHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("POST", "/", string(body))
+	expectResp := gumtest.JSONResponse{
+		http.StatusBadRequest,
+		gumrest.ErrorMessage{
+			Message: "Key: 'DocAccountData.DocID' Error:Field validation for 'DocID' failed on the 'required' tag",
+		},
+	}
+	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func Test_ReadOneDocAccountDataHandler(t *testing.T) {
+	db := initDB(t)
+
+	accountData := DocAccountData{
+		DocID:         2,
+		PeriodFrom:    gumtest.SimpleNow(),
+		PeriodTo:      gumtest.SimpleNow(),
+		AccountNumber: 2,
+	}
+
+	err := db.Insert(&accountData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := gin.New()
+	r.GET("/:id", gumwrap.Gorp(ReadOneDocAccountDataHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/2", "")
+	expectResp := gumtest.JSONResponse{http.StatusOK, accountData}
+	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+		t.Fatal(err)
+	}
+
+}
+
+func Test_UpdateDocAccountDataHandler(t *testing.T) {
+	db := initDB(t)
+
+	accountData := DocAccountData{
+		DocID:         2,
+		PeriodFrom:    time.Date(2012, time.April, 23, 18, 0, 0, 0, time.UTC),
+		PeriodTo:      time.Date(2012, time.April, 23, 18, 1, 0, 0, time.UTC),
+		AccountNumber: 2,
+	}
+
+	err := db.Insert(&accountData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body := `{
+		"period_from": "2012-04-23T18:00:00Z",
+		"period_to": "2012-04-23T18:01:00Z",
+		"account_number": 2
+	}`
+
+	r := gin.New()
+	r.PUT("/:id", gumwrap.Gorp(UpdateDocAccountDataHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("PUT", "/2", body)
+	expectResp := gumtest.JSONResponse{http.StatusOK, accountData}
+	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+		t.Fatal(err)
+	}
+}

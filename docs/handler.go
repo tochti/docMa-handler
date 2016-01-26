@@ -1,6 +1,7 @@
 package docs
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -93,6 +94,116 @@ func UpdateDocNameHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 	}
 
 	ginCtx.JSON(http.StatusOK, nil)
+}
+
+func CreateDocNumberHandler(ginCtx *gin.Context, db *gorp.DbMap) {
+	docNumber := DocNumber{}
+	if err := ginCtx.BindJSON(&docNumber); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := valid.Struct(docNumber); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := db.Insert(&docNumber); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	ginCtx.JSON(http.StatusCreated, docNumber)
+}
+
+func DeleteDocNumberHandler(ginCtx *gin.Context, db *gorp.DbMap) {
+	id, err := ReadDocID(ginCtx)
+	if err != nil {
+		return
+	}
+
+	number, ok := ginCtx.Params.Get("number")
+	if !ok {
+		err := errors.New("Missing number parameter")
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	docNumber := DocNumber{
+		DocID:  id,
+		Number: number,
+	}
+
+	if _, err = db.Delete(&docNumber); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	ginCtx.JSON(http.StatusOK, nil)
+
+}
+
+func CreateDocAccountDataHandler(ginCtx *gin.Context, db *gorp.DbMap) {
+	docAccountData := DocAccountData{}
+	if err := ginCtx.BindJSON(&docAccountData); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := valid.Struct(docAccountData); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := db.Insert(&docAccountData); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	ginCtx.JSON(http.StatusCreated, docAccountData)
+}
+
+func ReadOneDocAccountDataHandler(ginCtx *gin.Context, db *gorp.DbMap) {
+	id, err := ReadDocID(ginCtx)
+	if err != nil {
+		return
+	}
+
+	docAccountData := DocAccountData{}
+	q := Q("SELECT * FROM %v WHERE doc_id=?", DocAccountDataTable)
+	if err := db.SelectOne(&docAccountData, q, id); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	ginCtx.JSON(http.StatusOK, docAccountData)
+}
+
+func UpdateDocAccountDataHandler(ginCtx *gin.Context, db *gorp.DbMap) {
+	id, err := ReadDocID(ginCtx)
+	if err != nil {
+		return
+	}
+
+	docAccountData := DocAccountData{}
+	if err := ginCtx.BindJSON(&docAccountData); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	docAccountData.DocID = id
+	if err := valid.Struct(docAccountData); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	if _, err := db.Update(&docAccountData); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	ginCtx.JSON(http.StatusOK, docAccountData)
+
 }
 
 func ReadDocID(c *gin.Context) (int64, error) {
