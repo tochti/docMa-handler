@@ -2,19 +2,18 @@ package labels
 
 import (
 	"net/http"
-	"os"
 	"testing"
 
 	"gopkg.in/gorp.v1"
 
 	"github.com/gin-gonic/gin"
-	"github.com/tochti/docMa-handler"
+	"github.com/tochti/docMa-handler/common"
 	"github.com/tochti/gin-gum/gumtest"
 	"github.com/tochti/gin-gum/gumwrap"
 )
 
 func Test_CreateLabel(t *testing.T) {
-	db := initTestDB(t)
+	db := initDB(t)
 
 	r := gin.New()
 	r.POST("/", gumwrap.Gorp(CreateLabel, db))
@@ -32,7 +31,7 @@ func Test_CreateLabel(t *testing.T) {
 }
 
 func Test_CreateLabelFail(t *testing.T) {
-	db := initTestDB(t)
+	db := initDB(t)
 
 	r := gin.New()
 	r.POST("/", gumwrap.Gorp(CreateLabel, db))
@@ -47,7 +46,7 @@ func Test_CreateLabelFail(t *testing.T) {
 }
 
 func Test_ReadAllLabels(t *testing.T) {
-	db := initTestDB(t)
+	db := initDB(t)
 	labels := fillTestDB(t, db)
 
 	r := gin.New()
@@ -63,7 +62,7 @@ func Test_ReadAllLabels(t *testing.T) {
 }
 
 func Test_ReadAllLabelsWithFilter(t *testing.T) {
-	db := initTestDB(t)
+	db := initDB(t)
 	labels := fillTestDB(t, db)
 
 	r := gin.New()
@@ -79,7 +78,7 @@ func Test_ReadAllLabelsWithFilter(t *testing.T) {
 }
 
 func Test_ReadOneLabel(t *testing.T) {
-	db := initTestDB(t)
+	db := initDB(t)
 	labels := fillTestDB(t, db)
 
 	r := gin.New()
@@ -96,7 +95,7 @@ func Test_ReadOneLabel(t *testing.T) {
 }
 
 func Test_ReadOneLabelFail(t *testing.T) {
-	db := initTestDB(t)
+	db := initDB(t)
 	fillTestDB(t, db)
 
 	r := gin.New()
@@ -110,7 +109,7 @@ func Test_ReadOneLabelFail(t *testing.T) {
 }
 
 func Test_DeleteLabel(t *testing.T) {
-	db := initTestDB(t)
+	db := initDB(t)
 	fillTestDB(t, db)
 
 	r := gin.New()
@@ -125,33 +124,6 @@ func Test_DeleteLabel(t *testing.T) {
 	}
 }
 
-func setenvTest() {
-	os.Clearenv()
-
-	os.Setenv("MYSQL_USER", "tochti")
-	os.Setenv("MYSQL_PASSWORD", "123")
-	os.Setenv("MYSQL_HOST", "127.0.0.1")
-	os.Setenv("MYSQL_PORT", "3306")
-	os.Setenv("MYSQL_DB_NAME", TestDatabase)
-}
-
-func initTestDB(t *testing.T) *gorp.DbMap {
-	setenvTest()
-
-	db := bebber.InitMySQL()
-
-	err := db.DropTablesIfExists()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = db.CreateTablesIfNotExists()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return db
-}
-
 func fillTestDB(t *testing.T, db *gorp.DbMap) []*Label {
 	labels := []*Label{
 		{1, "bad"},
@@ -161,4 +133,8 @@ func fillTestDB(t *testing.T, db *gorp.DbMap) []*Label {
 	db.Insert(gumtest.IfaceSlice(labels)...)
 
 	return labels
+}
+
+func initDB(t *testing.T) *gorp.DbMap {
+	return common.InitTestDB(t, AddTables)
 }
