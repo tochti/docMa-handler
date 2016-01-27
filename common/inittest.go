@@ -21,11 +21,13 @@ func setenvTest() {
 	os.Setenv("MYSQL_DB_NAME", TestDBName)
 }
 
-func InitTestDB(t *testing.T, AddTablesFunc func(*gorp.DbMap)) *gorp.DbMap {
+func InitTestDB(t *testing.T, AddTablesFunc ...func(*gorp.DbMap)) *gorp.DbMap {
 	setenvTest()
 
 	db := InitMySQL()
-	AddTablesFunc(db)
+	for _, fun := range AddTablesFunc {
+		fun(db)
+	}
 
 	err := db.DropTablesIfExists()
 	if err != nil {
