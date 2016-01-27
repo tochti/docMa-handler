@@ -10,16 +10,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/tochti/docMa-handler/common"
+	"github.com/tochti/docMa-handler/labels"
 	"github.com/tochti/gin-gum/gumrest"
 	"github.com/tochti/gin-gum/gumtest"
 	"github.com/tochti/gin-gum/gumwrap"
 )
-
-func initDB(t *testing.T) *gorp.DbMap {
-	db := common.InitTestDB(t, AddTables)
-
-	return db
-}
 
 func Test_CreateDoc(t *testing.T) {
 	db := initDB(t)
@@ -418,4 +413,49 @@ func Test_UpdateDocAccountDataHandler(t *testing.T) {
 	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func Test_FindAllLabelsOfDocHandler(t *testing.T) {
+	db := common.InitTestDB(t, AddTables, labels.AddTables)
+
+	label := labels.Label{
+		ID:   1,
+		Name: "label",
+	}
+
+	doc := Doc{
+		ID:   1,
+		Name: "karl.pdf",
+	}
+
+	docsLabels := DocsLabels{
+		DocID:   doc.ID,
+		LabelID: label.ID,
+	}
+
+	if err := db.Insert(&label); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := db.Insert(&doc); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := db.Insert(&docsLabels); err != nil {
+		t.Fatal(err)
+	}
+
+	r := gin.New()
+	r.GET("/docs/:id/labels", gumwrap.Gorp(FindAllLabelsOfDocHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/docs/1/labels", "")
+	expectResp := gumtest.JSONResponse{http.StatusOK, []labels.Label{label}}
+	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func initDB(t *testing.T) *gorp.DbMap {
+	db := common.InitTestDB(t, AddTables)
+
+	return db
 }

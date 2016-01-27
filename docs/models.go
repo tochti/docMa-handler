@@ -6,6 +6,7 @@ var (
 	DocsTable           = "docs"
 	DocNumbersTable     = "doc_numbers"
 	DocAccountDataTable = "account_data"
+	DocsLabelsTable     = "docs_labels"
 )
 
 type Doc struct {
@@ -27,4 +28,9 @@ type DocAccountData struct {
 type DocNumber struct {
 	DocID  int64  `db:"doc_id" json:"doc_id" valid:"required,gt=0"`
 	Number string `db:"number" json:"number" valid:"required"`
+}
+
+type DocsLabels struct {
+	DocID   int64 `db:"doc_id" json:"doc_id" valid="required,gt=0"`
+	LabelID int64 `db:"label_id" json:"label_id" valid="required,gt=0"`
 }

@@ -206,6 +206,21 @@ func UpdateDocAccountDataHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 
 }
 
+func FindAllLabelsOfDocHandler(ginCtx *gin.Context, db *gorp.DbMap) {
+	id, err := ReadDocID(ginCtx)
+	if err != nil {
+		return
+	}
+
+	labelList, err := FindLabelsOfDoc(db, id)
+	if err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	ginCtx.JSON(http.StatusOK, labelList)
+}
+
 func ReadDocID(c *gin.Context) (int64, error) {
 	tmp := c.Params.ByName("id")
 	labelID, err := strconv.ParseInt(tmp, 10, 64)
