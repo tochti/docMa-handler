@@ -8,7 +8,7 @@ import (
 	"github.com/tochti/docMa-handler/labels"
 )
 
-func Test_FindAllLabelsOfDoc(t *testing.T) {
+func Test_FindLabelsOfDoc(t *testing.T) {
 	db := common.InitTestDB(t, AddTables, labels.AddTables)
 
 	label := labels.Label{
