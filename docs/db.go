@@ -37,3 +37,30 @@ func FindLabelsOfDoc(db *gorp.DbMap, docID int64) ([]labels.Label, error) {
 	return labelList, nil
 
 }
+
+func ReadDocNumbers(db *gorp.DbMap, docID int64) ([]DocNumber, error) {
+	docNumbers := []DocNumber{}
+	_, err := db.Select(
+		&docNumbers,
+		Q("SELECT * FROM %v WHERE doc_id=?", DocNumbersTable),
+		docID,
+	)
+	if err != nil {
+		return []DocNumber{}, err
+	}
+
+	return docNumbers, nil
+}
+
+func ReadAccountData(db *gorp.DbMap, docID int64) (DocAccountData, error) {
+	accountData := DocAccountData{}
+	err := db.SelectOne(
+		&accountData,
+		Q("SELECT * FROM %v WHERE doc_id=?", DocAccountDataTable),
+		docID,
+	)
+	if err != nil {
+		return DocAccountData{}, err
+	}
+	return accountData, nil
+}

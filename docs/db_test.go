@@ -6,6 +6,7 @@ import (
 
 	"github.com/tochti/docMa-handler/common"
 	"github.com/tochti/docMa-handler/labels"
+	"github.com/tochti/gin-gum/gumtest"
 )
 
 func Test_FindLabelsOfDoc(t *testing.T) {
@@ -47,6 +48,61 @@ func Test_FindLabelsOfDoc(t *testing.T) {
 	ok := reflect.DeepEqual(expect, r)
 	if !ok {
 		t.Fatalf("Expect %v was %v", expect, r)
+	}
+
+}
+
+func Test_ReadDocNumbers(t *testing.T) {
+	db := initDB(t)
+
+	docNumber := DocNumber{
+		DocID:  1,
+		Number: "1",
+	}
+
+	if err := db.Insert(&docNumber); err != nil {
+		t.Fatal(err)
+	}
+
+	docNumbers, err := ReadDocNumbers(db, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(docNumbers) != 1 {
+		t.Fatalf("Expect %v was %v", 1, len(docNumbers))
+	}
+
+	if docNumbers[0].Number != docNumber.Number {
+		t.Fatalf("Expect %v was %v", docNumber.Number, docNumbers[0].Number)
+	}
+
+}
+
+func Test_ReadAccountData(t *testing.T) {
+	db := initDB(t)
+
+	accountData := DocAccountData{
+		DocID:         1,
+		AccountNumber: 12,
+		PeriodFrom:    gumtest.SimpleNow(),
+		PeriodTo:      gumtest.SimpleNow(),
+	}
+
+	if err := db.Insert(&accountData); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := ReadAccountData(db, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if r.DocID != accountData.DocID ||
+		r.AccountNumber != accountData.AccountNumber ||
+		!r.PeriodFrom.Equal(accountData.PeriodFrom) ||
+		!r.PeriodTo.Equal(accountData.PeriodTo) {
+		t.Fatalf("Expect %v was %v", accountData, r)
 	}
 
 }

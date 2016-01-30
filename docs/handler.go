@@ -1,12 +1,14 @@
 package docs
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tochti/docMa-handler/accountingData"
 	"github.com/tochti/docMa-handler/valid"
 	"github.com/tochti/gin-gum/gumrest"
 	"gopkg.in/gorp.v1"
@@ -219,6 +221,77 @@ func FindAllLabelsOfDocHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 	}
 
 	ginCtx.JSON(http.StatusOK, labelList)
+}
+
+func FindAllAccountingDataOfDocHandler(ginCtx *gin.Context, db *gorp.DbMap) {
+	id, err := ReadDocID(ginCtx)
+	if err != nil {
+		return
+	}
+
+	tmp, err := ReadDocNumbers(db, id)
+	if err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+	docNumbers := []string{}
+	for _, x := range tmp {
+		docNumbers = append(docNumbers, x.Number)
+	}
+
+	var r1 []accountingData.AccountingData
+	if len(docNumbers) > 0 {
+		var err error
+		r1, err = accountingData.FindAccountingDataByDocNumbers(db, docNumbers)
+		if err != nil {
+			gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+			return
+		}
+	}
+
+	accountData, err := ReadAccountData(db, id)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+			return
+		}
+	}
+
+	var r2 []accountingData.AccountingData
+	if err != sql.ErrNoRows {
+		var err error
+		r2, err = accountingData.FindAccountingDataByAccountNumber(
+			db,
+			accountData.AccountNumber,
+			accountData.PeriodFrom,
+			accountData.PeriodTo,
+		)
+		if err != nil {
+			gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+			return
+		}
+	}
+
+	r := mergeAccountingData(r1, r2)
+
+	ginCtx.JSON(http.StatusOK, r)
+}
+
+func mergeAccountingData(a1, a2 []accountingData.AccountingData) []accountingData.AccountingData {
+	ids := map[int64]bool{}
+	r := a1
+
+	for _, e := range a1 {
+		ids[e.ID] = true
+	}
+
+	for _, e := range a2 {
+		if _, ok := ids[e.ID]; !ok {
+			r = append(r, e)
+		}
+	}
+
+	return r
 }
 
 func ReadDocID(c *gin.Context) (int64, error) {
