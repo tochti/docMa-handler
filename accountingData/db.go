@@ -8,8 +8,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/tochti/docMa-handler/docs"
-
 	"gopkg.in/gorp.v1"
 )
 
@@ -17,7 +15,7 @@ func AddTables(db *gorp.DbMap) {
 	db.AddTableWithName(AccountingData{}, AccountingDataTable).SetKeys(true, "id")
 }
 
-func FindAccountingDataByDocNumbers(db *gorp.DbMap, docNumbers []docs.DocNumber) ([]AccountingData, error) {
+func FindAccountingDataByDocNumbers(db *gorp.DbMap, docNumbers []string) ([]AccountingData, error) {
 
 	filters := `
 		WHERE (
@@ -43,7 +41,7 @@ func FindAccountingDataByDocNumbers(db *gorp.DbMap, docNumbers []docs.DocNumber)
 
 	flatDocNumbers := []string{}
 	for _, n := range docNumbers {
-		rang, number, err := SplitDocNumber(n.Number)
+		rang, number, err := SplitDocNumber(n)
 		if err != nil {
 			return []AccountingData{}, nil
 		}

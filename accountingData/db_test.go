@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/tochti/docMa-handler/common"
-	"github.com/tochti/docMa-handler/docs"
 	"github.com/tochti/gin-gum/gumtest"
 )
 
@@ -35,13 +34,7 @@ func Test_FindAccountingDataByDocNumbers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	docNumbers := []docs.DocNumber{
-		docs.DocNumber{
-			DocID:  1,
-			Number: "DNR123",
-		},
-	}
-	r, err := FindAccountingDataByDocNumbers(db, docNumbers)
+	r, err := FindAccountingDataByDocNumbers(db, []string{"DNR123"})
 	if err != nil {
 		t.Fatal(r)
 	}
