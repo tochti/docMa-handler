@@ -666,6 +666,109 @@ func Test_FindAllAccountingDataOfDocHandler_NoAccountData(t *testing.T) {
 	}
 }
 
+func Test_JoinLabelHandler(t *testing.T) {
+	db := common.InitTestDB(t, AddTables, labels.AddTables)
+
+	docsLabels := DocsLabels{
+		DocID:   1,
+		LabelID: 1,
+	}
+
+	body, err := json.Marshal(docsLabels)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := gin.New()
+	r.POST("/", gumwrap.Gorp(JoinLabelHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("POST", "/", string(body))
+
+	expectResp := gumtest.JSONResponse{
+		http.StatusCreated,
+		docsLabels,
+	}
+	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func Test_DetachLabelHandler(t *testing.T) {
+	db := common.InitTestDB(t, AddTables, labels.AddTables)
+
+	a := DocsLabels{
+		DocID:   1,
+		LabelID: 1,
+	}
+	if err := db.Insert(&a); err != nil {
+		t.Fatal(err)
+	}
+
+	r := gin.New()
+	r.DELETE("/:docID/:labelID", gumwrap.Gorp(DetachLabelHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("DELETE", "/1/1", "")
+
+	expectResp := gumtest.JSONResponse{
+		http.StatusOK,
+		nil,
+	}
+	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func Test_ReadIntParam(t *testing.T) {
+	passed := false
+	h := func(c *gin.Context) {
+		i, err := ReadIntParam(c, "id")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if i != int(1) {
+			t.Fatal("Expect 1 was", 1)
+		}
+
+		passed = true
+	}
+
+	r := gin.New()
+	r.GET("/:id", h)
+	gumtest.NewRouter(r).ServeHTTP("GET", "/1", "")
+
+	if !passed {
+		t.Fatal("Didn't passed all tests")
+	}
+}
+
+func Test_ReadIntParam_CannotFoundParam(t *testing.T) {
+	passed := false
+	h := func(c *gin.Context) {
+		_, err := ReadIntParam(c, "id")
+		if err == nil {
+			t.Fatal("Expect err not to be nil")
+		}
+
+		passed = true
+	}
+
+	r := gin.New()
+	r.GET("/:none", h)
+	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/1", "")
+	expectResp := gumtest.JSONResponse{
+		http.StatusBadRequest,
+		gumrest.ErrorMessage{
+			Message: `strconv.ParseInt: parsing "": invalid syntax`,
+		},
+	}
+	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+		t.Fatal(err)
+	}
+
+	if !passed {
+		t.Fatal("Didn't passed all tests")
+	}
+}
+
 func initDB(t *testing.T) *gorp.DbMap {
 	db := common.InitTestDB(t, AddTables)
 

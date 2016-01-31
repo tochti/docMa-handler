@@ -277,6 +277,49 @@ func FindAllAccountingDataOfDocHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 	ginCtx.JSON(http.StatusOK, r)
 }
 
+func JoinLabelHandler(ginCtx *gin.Context, db *gorp.DbMap) {
+	docsLabels := DocsLabels{}
+	if err := ginCtx.BindJSON(&docsLabels); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := valid.Struct(docsLabels); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := db.Insert(&docsLabels); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	ginCtx.JSON(http.StatusCreated, docsLabels)
+}
+
+func DetachLabelHandler(ginCtx *gin.Context, db *gorp.DbMap) {
+	docID, err := ReadIntParam(ginCtx, "docID")
+	if err != nil {
+		return
+	}
+	labelID, err := ReadIntParam(ginCtx, "labelID")
+	if err != nil {
+		return
+	}
+
+	docsLabels := DocsLabels{
+		DocID:   int64(docID),
+		LabelID: int64(labelID),
+	}
+
+	if _, err := db.Delete(&docsLabels); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	ginCtx.JSON(http.StatusOK, nil)
+}
+
 func mergeAccountingData(a1, a2 []accountingData.AccountingData) []accountingData.AccountingData {
 	ids := map[int64]bool{}
 	r := a1
@@ -295,8 +338,13 @@ func mergeAccountingData(a1, a2 []accountingData.AccountingData) []accountingDat
 }
 
 func ReadDocID(c *gin.Context) (int64, error) {
-	tmp := c.Params.ByName("id")
-	labelID, err := strconv.ParseInt(tmp, 10, 64)
+	i, err := ReadIntParam(c, "id")
+	return int64(i), err
+}
+
+func ReadIntParam(c *gin.Context, name string) (int, error) {
+	tmp := c.Params.ByName(name)
+	i, err := strconv.Atoi(tmp)
 	if err != nil {
 		gumrest.ErrorResponse(
 			c,
@@ -306,7 +354,7 @@ func ReadDocID(c *gin.Context) (int64, error) {
 		return -1, err
 	}
 
-	return labelID, nil
+	return i, nil
 }
 
 func Q(q string, p ...interface{}) string {
