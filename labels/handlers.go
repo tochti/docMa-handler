@@ -121,7 +121,7 @@ func Q(q string, p ...interface{}) string {
 }
 
 func ReadLabelID(c *gin.Context) (int64, error) {
-	tmp := c.Params.ByName("id")
+	tmp := c.Params.ByName("labelID")
 	labelID, err := strconv.ParseInt(tmp, 10, 64)
 	if err != nil {
 		gumrest.ErrorResponse(

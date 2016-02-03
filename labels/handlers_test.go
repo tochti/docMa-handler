@@ -82,7 +82,7 @@ func Test_ReadOneLabel(t *testing.T) {
 	labels := fillTestDB(t, db)
 
 	r := gin.New()
-	r.GET("/:id", gumwrap.Gorp(ReadOneLabel, db))
+	r.GET("/:labelID", gumwrap.Gorp(ReadOneLabel, db))
 
 	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/1", "")
 
@@ -99,7 +99,7 @@ func Test_ReadOneLabelFail(t *testing.T) {
 	fillTestDB(t, db)
 
 	r := gin.New()
-	r.GET("/:id", gumwrap.Gorp(ReadOneLabel, db))
+	r.GET("/:labelID", gumwrap.Gorp(ReadOneLabel, db))
 
 	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/5", "")
 
@@ -113,7 +113,7 @@ func Test_DeleteLabel(t *testing.T) {
 	fillTestDB(t, db)
 
 	r := gin.New()
-	r.DELETE("/:id", gumwrap.Gorp(DeleteLabel, db))
+	r.DELETE("/:labelID", gumwrap.Gorp(DeleteLabel, db))
 
 	resp := gumtest.NewRouter(r).ServeHTTP("DELETE", "/1", "")
 
