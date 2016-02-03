@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/tochti/docMa-handler/accountingData"
+	"github.com/tochti/docMa-handler/labels"
 	"github.com/tochti/docMa-handler/valid"
 	"github.com/tochti/gin-gum/gumrest"
 	"gopkg.in/gorp.v1"
@@ -124,7 +125,7 @@ func DeleteDocNumberHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 		return
 	}
 
-	number, ok := ginCtx.Params.Get("number")
+	number, ok := ginCtx.Params.Get("docNumber")
 	if !ok {
 		err := errors.New("Missing number parameter")
 		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
@@ -321,9 +322,12 @@ func DetachLabelHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 }
 
 func FindDocsWithLabelHandler(ginCtx *gin.Context, db *gorp.DbMap) {
-	name := ginCtx.Params.ByName("name")
+	labelID, err := labels.ReadLabelID(ginCtx)
+	if err != nil {
+		return
+	}
 
-	docs, err := FindDocsWithLabel(db, name)
+	docs, err := FindDocsWithLabel(db, labelID)
 	if err != nil {
 		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
 		return
@@ -350,7 +354,7 @@ func mergeAccountingData(a1, a2 []accountingData.AccountingData) []accountingDat
 }
 
 func ReadDocID(c *gin.Context) (int64, error) {
-	i, err := ReadIntParam(c, "id")
+	i, err := ReadIntParam(c, "docID")
 	return int64(i), err
 }
 

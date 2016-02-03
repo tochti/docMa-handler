@@ -2,7 +2,6 @@ package docs
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -18,7 +17,7 @@ import (
 	"github.com/tochti/gin-gum/gumwrap"
 )
 
-func Test_CreateDoc(t *testing.T) {
+func Test_CreateDocHandler(t *testing.T) {
 	db := initDB(t)
 
 	doc := Doc{
@@ -132,7 +131,7 @@ func Test_ReadOneDocHandler(t *testing.T) {
 	}
 
 	r := gin.New()
-	r.GET("/:id", gumwrap.Gorp(ReadOneDocHandler, db))
+	r.GET("/:docID", gumwrap.Gorp(ReadOneDocHandler, db))
 	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/1", "")
 
 	expectResp := gumtest.JSONResponse{
@@ -169,7 +168,7 @@ func Test_UpdateDocHandler(t *testing.T) {
 	}`
 
 	r := gin.New()
-	r.PUT("/:id", gumwrap.Gorp(UpdateDocHandler, db))
+	r.PUT("/:docID", gumwrap.Gorp(UpdateDocHandler, db))
 	resp := gumtest.NewRouter(r).ServeHTTP("PUT", "/1", body)
 
 	doc = Doc{
@@ -209,7 +208,7 @@ func Test_UpdateDocNameHandler(t *testing.T) {
 	body := `{"name": "fungi.txt"}`
 
 	r := gin.New()
-	r.PATCH("/:id/name", gumwrap.Gorp(UpdateDocNameHandler, db))
+	r.PATCH("/:docID/name", gumwrap.Gorp(UpdateDocNameHandler, db))
 	resp := gumtest.NewRouter(r).ServeHTTP("PATCH", "/1/name", body)
 
 	doc.Name = "fungi.txt"
@@ -222,7 +221,7 @@ func Test_UpdateDocNameHandler(t *testing.T) {
 	}
 }
 
-func Test_CreateDocNumber(t *testing.T) {
+func Test_CreateDocNumberHandler(t *testing.T) {
 	db := initDB(t)
 
 	doc := DocNumber{
@@ -245,7 +244,7 @@ func Test_CreateDocNumber(t *testing.T) {
 
 }
 
-func Test_CreateDocNumber_MissingDocID(t *testing.T) {
+func Test_CreateDocNumberHandler_MissingDocID(t *testing.T) {
 	db := initDB(t)
 
 	body := `{"number":"1"}`
@@ -265,7 +264,7 @@ func Test_CreateDocNumber_MissingDocID(t *testing.T) {
 
 }
 
-func Test_CreateDocNumber_MissingNumber(t *testing.T) {
+func Test_CreateDocNumberHandler_MissingNumber(t *testing.T) {
 	db := initDB(t)
 
 	body := `{"doc_id": 1}`
@@ -285,7 +284,7 @@ func Test_CreateDocNumber_MissingNumber(t *testing.T) {
 
 }
 
-func Test_DeleteDocNumber(t *testing.T) {
+func Test_DeleteDocNumberHandler(t *testing.T) {
 	db := initDB(t)
 
 	docNumber := DocNumber{
@@ -299,7 +298,7 @@ func Test_DeleteDocNumber(t *testing.T) {
 	}
 
 	r := gin.New()
-	r.DELETE("/:id/:number", gumwrap.Gorp(DeleteDocNumberHandler, db))
+	r.DELETE("/:docID/:number", gumwrap.Gorp(DeleteDocNumberHandler, db))
 	resp := gumtest.NewRouter(r).ServeHTTP("DELETE", "/2/1", "")
 	expectResp := gumtest.JSONResponse{http.StatusOK, nil}
 
@@ -378,7 +377,7 @@ func Test_ReadOneDocAccountDataHandler(t *testing.T) {
 	}
 
 	r := gin.New()
-	r.GET("/:id", gumwrap.Gorp(ReadOneDocAccountDataHandler, db))
+	r.GET("/:docID", gumwrap.Gorp(ReadOneDocAccountDataHandler, db))
 	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/2", "")
 	expectResp := gumtest.JSONResponse{http.StatusOK, accountData}
 	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
@@ -409,7 +408,7 @@ func Test_UpdateDocAccountDataHandler(t *testing.T) {
 	}`
 
 	r := gin.New()
-	r.PUT("/:id", gumwrap.Gorp(UpdateDocAccountDataHandler, db))
+	r.PUT("/:docID", gumwrap.Gorp(UpdateDocAccountDataHandler, db))
 	resp := gumtest.NewRouter(r).ServeHTTP("PUT", "/2", body)
 	expectResp := gumtest.JSONResponse{http.StatusOK, accountData}
 	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
@@ -448,7 +447,7 @@ func Test_FindAllLabelsOfDocHandler(t *testing.T) {
 	}
 
 	r := gin.New()
-	r.GET("/docs/:id/labels", gumwrap.Gorp(FindAllLabelsOfDocHandler, db))
+	r.GET("/docs/:docID/labels", gumwrap.Gorp(FindAllLabelsOfDocHandler, db))
 	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/docs/1/labels", "")
 	expectResp := gumtest.JSONResponse{http.StatusOK, []labels.Label{label}}
 	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
@@ -543,7 +542,7 @@ func Test_FindAllAccountingDataOfDocHandler(t *testing.T) {
 	}
 
 	r := gin.New()
-	r.GET("/:id", gumwrap.Gorp(FindAllAccountingDataOfDocHandler, db))
+	r.GET("/:docID", gumwrap.Gorp(FindAllAccountingDataOfDocHandler, db))
 	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/1", "")
 
 	expectResp := gumtest.JSONResponse{
@@ -608,7 +607,7 @@ func Test_FindAllAccountingDataOfDocHandler_NoDocNumbers(t *testing.T) {
 	}
 
 	r := gin.New()
-	r.GET("/:id", gumwrap.Gorp(FindAllAccountingDataOfDocHandler, db))
+	r.GET("/:docID", gumwrap.Gorp(FindAllAccountingDataOfDocHandler, db))
 	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/1", "")
 
 	expectResp := gumtest.JSONResponse{
@@ -653,7 +652,7 @@ func Test_FindAllAccountingDataOfDocHandler_NoAccountData(t *testing.T) {
 	}
 
 	r := gin.New()
-	r.GET("/:id", gumwrap.Gorp(FindAllAccountingDataOfDocHandler, db))
+	r.GET("/:docID", gumwrap.Gorp(FindAllAccountingDataOfDocHandler, db))
 	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/1", "")
 
 	expectResp := gumtest.JSONResponse{
@@ -739,14 +738,13 @@ func Test_FindDocsWithLabelHandler(t *testing.T) {
 	}
 
 	r := gin.New()
-	r.GET("/docs/labels/name/:name", gumwrap.Gorp(FindDocsWithLabelHandler, db))
-	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/docs/labels/name/label", "")
+	r.GET("/labels/:labelID/docs", gumwrap.Gorp(FindDocsWithLabelHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/labels/1/docs", "")
 
 	expectResp := gumtest.JSONResponse{
 		http.StatusOK,
 		[]Doc{doc},
 	}
-	fmt.Println(resp)
 	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
 		t.Fatal(err)
 	}
@@ -768,7 +766,7 @@ func Test_ReadIntParam(t *testing.T) {
 	}
 
 	r := gin.New()
-	r.GET("/:id", h)
+	r.GET("/:docID", h)
 	gumtest.NewRouter(r).ServeHTTP("GET", "/1", "")
 
 	if !passed {

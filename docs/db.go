@@ -1,8 +1,6 @@
 package docs
 
 import (
-	"fmt"
-
 	"github.com/tochti/docMa-handler/labels"
 	"gopkg.in/gorp.v1"
 )
@@ -67,7 +65,7 @@ func ReadAccountData(db *gorp.DbMap, docID int64) (DocAccountData, error) {
 	return accountData, nil
 }
 
-func FindDocsWithLabel(db *gorp.DbMap, label string) ([]Doc, error) {
+func FindDocsWithLabel(db *gorp.DbMap, labelID int64) ([]Doc, error) {
 	d := []Doc{}
 
 	q := Q(`
@@ -77,12 +75,10 @@ func FindDocsWithLabel(db *gorp.DbMap, label string) ([]Doc, error) {
 		docs.barcode,
 		docs.date_of_scan,
 		docs.date_of_receipt
-	FROM %v as docs, %v as labels, %v as docs_labels
-	WHERE labels.name=?
-	AND docs_labels.label_id=labels.id
-	AND docs.id=docs_labels.doc_id`, DocsTable, labels.LabelsTable, DocsLabelsTable)
-	fmt.Println(q)
-	_, err := db.Select(&d, q, label)
+	FROM %v as docs, %v as docs_labels
+	WHERE docs_labels.label_id=?
+	AND docs.id=docs_labels.doc_id`, DocsTable, DocsLabelsTable)
+	_, err := db.Select(&d, q, labelID)
 	if err != nil {
 		return []Doc{}, err
 	}

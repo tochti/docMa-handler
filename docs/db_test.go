@@ -134,7 +134,7 @@ func Test_FindDocsWithLabel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r, err := FindDocsWithLabel(db, "test")
+	r, err := FindDocsWithLabel(db, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
