@@ -2,6 +2,7 @@ package docs
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -711,6 +712,41 @@ func Test_DetachLabelHandler(t *testing.T) {
 		http.StatusOK,
 		nil,
 	}
+	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func Test_FindDocsWithLabelHandler(t *testing.T) {
+	db := common.InitTestDB(t, AddTables, labels.AddTables)
+
+	doc := Doc{
+		ID:   1,
+		Name: "test1.pdf",
+	}
+
+	label := labels.Label{
+		ID:   1,
+		Name: "label",
+	}
+
+	docsLabels := DocsLabels{
+		DocID:   1,
+		LabelID: 1,
+	}
+	if err := db.Insert(&doc, &label, &docsLabels); err != nil {
+		t.Fatal(err)
+	}
+
+	r := gin.New()
+	r.GET("/docs/labels/name/:name", gumwrap.Gorp(FindDocsWithLabelHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/docs/labels/name/label", "")
+
+	expectResp := gumtest.JSONResponse{
+		http.StatusOK,
+		[]Doc{doc},
+	}
+	fmt.Println(resp)
 	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
 		t.Fatal(err)
 	}

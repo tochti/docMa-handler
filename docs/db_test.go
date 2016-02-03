@@ -106,3 +106,42 @@ func Test_ReadAccountData(t *testing.T) {
 	}
 
 }
+
+func Test_FindDocsWithLabel(t *testing.T) {
+	db := common.InitTestDB(t, AddTables, labels.AddTables)
+
+	doc := Doc{
+		ID:   1,
+		Name: "test.pdf",
+	}
+
+	doc2 := Doc{
+		ID:   2,
+		Name: "test2.pdf",
+	}
+
+	label := labels.Label{
+		ID:   1,
+		Name: "test",
+	}
+
+	docsLabels := DocsLabels{
+		DocID:   1,
+		LabelID: 1,
+	}
+
+	if err := db.Insert(&doc, &doc2, &label, &docsLabels); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := FindDocsWithLabel(db, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expect := []Doc{doc}
+	if !reflect.DeepEqual(expect, r) {
+		t.Fatalf("Expect %v was %v", expect, r)
+	}
+
+}

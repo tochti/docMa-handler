@@ -320,6 +320,18 @@ func DetachLabelHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 	ginCtx.JSON(http.StatusOK, nil)
 }
 
+func FindDocsWithLabelHandler(ginCtx *gin.Context, db *gorp.DbMap) {
+	name := ginCtx.Params.ByName("name")
+
+	docs, err := FindDocsWithLabel(db, name)
+	if err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	ginCtx.JSON(http.StatusOK, docs)
+}
+
 func mergeAccountingData(a1, a2 []accountingData.AccountingData) []accountingData.AccountingData {
 	ids := map[int64]bool{}
 	r := a1
