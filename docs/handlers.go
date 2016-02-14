@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/tochti/docMa-handler/accountingData"
@@ -52,6 +54,12 @@ func ReadOneDocHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 
 	ginCtx.JSON(http.StatusOK, doc)
 
+}
+
+func ReadDocFileHandler(c *gin.Context, specs Specs) {
+	filename := strings.Trim(c.Params.ByName("name"), "\"")
+	filepath := path.Join(specs.Files, filename)
+	c.File(filepath)
 }
 
 // Attention: its only possible to update the complet doc
