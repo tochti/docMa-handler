@@ -89,6 +89,11 @@ func UpdateDocNameHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 		return
 	}
 
+	if err := valid.Struct(doc); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
 	q := Q("UPDATE %v SET name=? WHERE id=?", DocsTable)
 	_, err = db.Exec(q, doc.Name, id)
 	if err != nil {
