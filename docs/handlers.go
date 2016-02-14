@@ -119,6 +119,22 @@ func CreateDocNumberHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 	ginCtx.JSON(http.StatusCreated, docNumber)
 }
 
+func ReadAllDocNumbersHandler(ginCtx *gin.Context, db *gorp.DbMap) {
+	id, err := ReadDocID(ginCtx)
+	if err != nil {
+		return
+	}
+
+	docNumbers := []DocNumber{}
+	q := Q("SELECT * FROM %v WHERE doc_id=?", DocNumbersTable)
+	if _, err := db.Select(&docNumbers, q, id); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	ginCtx.JSON(http.StatusOK, docNumbers)
+}
+
 func DeleteDocNumberHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 	id, err := ReadDocID(ginCtx)
 	if err != nil {

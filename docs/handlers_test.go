@@ -284,6 +284,30 @@ func Test_CreateDocNumberHandler_MissingNumber(t *testing.T) {
 
 }
 
+func Test_ReadAllDocNumbers(t *testing.T) {
+	db := initDB(t)
+
+	docNumber := DocNumber{
+		DocID:  1,
+		Number: "v",
+	}
+	err := db.Insert(&docNumber)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := gin.New()
+	r.GET("/:docID", gumwrap.Gorp(ReadAllDocNumbersHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/1", "")
+	expectResp := gumtest.JSONResponse{
+		http.StatusOK,
+		[]DocNumber{docNumber},
+	}
+	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func Test_DeleteDocNumberHandler(t *testing.T) {
 	db := initDB(t)
 
