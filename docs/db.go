@@ -74,7 +74,8 @@ func FindDocsWithLabel(db *gorp.DbMap, labelID int64) ([]Doc, error) {
 		docs.name,
 		docs.barcode,
 		docs.date_of_scan,
-		docs.date_of_receipt
+		docs.date_of_receipt,
+		docs.note
 	FROM %v as docs, %v as docs_labels
 	WHERE docs_labels.label_id=?
 	AND docs.id=docs_labels.doc_id`, DocsTable, DocsLabelsTable)
