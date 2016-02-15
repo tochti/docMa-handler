@@ -30,7 +30,7 @@ func FindAccountingDataByDocNumbers(db *gorp.DbMap, docNumbers []string) ([]Acco
 				AND accountingData.doc_number_range=?
 			)
 		`
-		filters = fmt.Sprintf("%v OR %v", filters, q)
+		filters = fmt.Sprintf("%v %v", filters, q)
 	}
 
 	q := Q(`
