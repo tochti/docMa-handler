@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/tochti/docMa-handler/accountingData"
+	"github.com/tochti/docMa-handler/common"
 	"github.com/tochti/docMa-handler/labels"
 	"github.com/tochti/docMa-handler/valid"
 	"github.com/tochti/gin-gum/gumrest"
@@ -56,7 +57,7 @@ func ReadOneDocHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 
 }
 
-func ReadDocFileHandler(c *gin.Context, specs Specs) {
+func ReadDocFileHandler(c *gin.Context, specs common.Specs) {
 	filename := strings.Trim(c.Params.ByName("name"), "\"")
 	filepath := path.Join(specs.Files, filename)
 	c.File(filepath)
