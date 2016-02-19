@@ -366,6 +366,22 @@ func FindDocsWithLabelHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 	ginCtx.JSON(http.StatusOK, docs)
 }
 
+func SearchDocsHandler(ginCtx *gin.Context, db *gorp.DbMap) {
+	searchForm := SearchForm{}
+	if err := ginCtx.BindJSON(&searchForm); err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	docs, err := SearchDocs(db, searchForm)
+	if err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	ginCtx.JSON(http.StatusOK, docs)
+}
+
 func mergeAccountingData(a1, a2 []accountingData.AccountingData) []accountingData.AccountingData {
 	ids := map[int64]bool{}
 	r := a1

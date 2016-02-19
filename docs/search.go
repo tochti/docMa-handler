@@ -13,14 +13,14 @@ import (
 
 type (
 	Interval struct {
-		From time.Time
-		To   time.Time
+		From time.Time `json:"from"`
+		To   time.Time `json:"to"`
 	}
 
 	SearchForm struct {
-		Labels     string
-		DocNumbers string
-		DateOfScan Interval
+		Labels     string   `json:"labels"`
+		DocNumbers string   `json:"doc_numbers"`
+		DateOfScan Interval `json:"date_of_scan"`
 	}
 )
 
@@ -113,6 +113,7 @@ func SearchDocs(db *gorp.DbMap, searchForm SearchForm) ([]Doc, error) {
 
 	sel := bytes.NewBufferString(`
 	SELECT
+		docs.id,
 		docs.name,
 		docs.barcode,
 		docs.date_of_scan,

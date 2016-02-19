@@ -774,6 +774,46 @@ func Test_FindDocsWithLabelHandler(t *testing.T) {
 	}
 }
 
+func Test_SearchDocsHandler(t *testing.T) {
+	db := common.InitTestDB(t, AddTables, labels.AddTables)
+
+	doc := Doc{
+		ID:   1,
+		Name: "test1.pdf",
+	}
+
+	label := labels.Label{
+		ID:   1,
+		Name: "label",
+	}
+
+	docsLabels := DocsLabels{
+		DocID:   1,
+		LabelID: 1,
+	}
+	if err := db.Insert(&doc, &label, &docsLabels); err != nil {
+		t.Fatal(err)
+	}
+
+	body := `
+	{
+		"labels": "label"
+	}
+	`
+
+	r := gin.New()
+	r.POST("/", gumwrap.Gorp(SearchDocsHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("POST", "/", body)
+
+	expectResp := gumtest.JSONResponse{
+		http.StatusOK,
+		[]Doc{doc},
+	}
+	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func Test_ReadIntParam(t *testing.T) {
 	passed := false
 	h := func(c *gin.Context) {
