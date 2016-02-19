@@ -322,7 +322,7 @@ func Test_DeleteDocNumberHandler(t *testing.T) {
 	}
 
 	r := gin.New()
-	r.DELETE("/:docID/:number", gumwrap.Gorp(DeleteDocNumberHandler, db))
+	r.DELETE("/:docID/:docNumber", gumwrap.Gorp(DeleteDocNumberHandler, db))
 	resp := gumtest.NewRouter(r).ServeHTTP("DELETE", "/2/1", "")
 	expectResp := gumtest.JSONResponse{http.StatusOK, nil}
 
@@ -777,7 +777,7 @@ func Test_FindDocsWithLabelHandler(t *testing.T) {
 func Test_ReadIntParam(t *testing.T) {
 	passed := false
 	h := func(c *gin.Context) {
-		i, err := ReadIntParam(c, "id")
+		i, err := ReadIntParam(c, "docID")
 		if err != nil {
 			t.Fatal(err)
 		}
