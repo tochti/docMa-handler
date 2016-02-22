@@ -193,6 +193,121 @@ func Test_SearchDocs_ToDateOfScan(t *testing.T) {
 	}
 }
 
+func Test_SearchDocs_BetweenDates(t *testing.T) {
+	db := common.InitTestDB(t, AddTables)
+
+	d := gumtest.SimpleNow()
+	doc1 := Doc{
+		ID:            1,
+		Name:          "FindMe.pdf",
+		Barcode:       "",
+		DateOfScan:    d,
+		DateOfReceipt: d,
+	}
+
+	if err := db.Insert(&doc1); err != nil {
+		t.Fatal(err)
+	}
+
+	d2 := gumtest.SimpleNow().Add(-48 * time.Hour)
+	err := db.Insert(
+		&Doc{
+			Name:          "DontFindMe1.pdf",
+			Barcode:       "",
+			DateOfScan:    d2,
+			DateOfReceipt: d2,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	searchForm := SearchForm{
+		DateOfScan: Interval{
+			From: d.Add(-24 * time.Hour),
+			To:   d.Add(+24 * time.Hour),
+		},
+	}
+
+	r, err := SearchDocs(db, searchForm)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(r) != 1 {
+		t.Fatal("Expect len 1 was len", len(r))
+	}
+
+	if doc1.Name != r[0].Name ||
+		doc1.Barcode != r[0].Barcode ||
+		!doc1.DateOfScan.Equal(r[0].DateOfScan) ||
+		!doc1.DateOfReceipt.Equal(r[0].DateOfReceipt) {
+		t.Fatalf("Expect %v was %v", doc1, r[0])
+	}
+}
+
+func Test_SearchDocs_ByDocNumbers(t *testing.T) {
+	db := common.InitTestDB(t, AddTables, labels.AddTables)
+
+	d := gumtest.SimpleNow()
+	doc1 := Doc{
+		ID:            1,
+		Name:          "FindMe.pdf",
+		Barcode:       "",
+		DateOfScan:    d,
+		DateOfReceipt: d,
+	}
+
+	docNumber1 := DocNumber{
+		DocID:  doc1.ID,
+		Number: "1",
+	}
+
+	if err := db.Insert(&doc1, &docNumber1); err != nil {
+		t.Fatal(err)
+	}
+
+	// Add docs that we shouldn't find
+	d2 := gumtest.SimpleNow()
+	err := db.Insert(
+		&Doc{
+			Name:          "DontFindMe1.pdf",
+			Barcode:       "",
+			DateOfScan:    d2,
+			DateOfReceipt: d2,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	searchForm := SearchForm{
+		Labels:     "",
+		DocNumbers: "1,2",
+		DateOfScan: Interval{
+			From: d,
+			To:   d,
+		},
+	}
+
+	r, err := SearchDocs(db, searchForm)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(r) != 1 {
+		t.Fatal("Expect len 1 was len", len(r))
+	}
+
+	if doc1.Name != r[0].Name ||
+		doc1.Barcode != r[0].Barcode ||
+		!doc1.DateOfScan.Equal(r[0].DateOfScan) ||
+		!doc1.DateOfReceipt.Equal(r[0].DateOfReceipt) {
+		t.Fatalf("Expect %v was %v", doc1, r[0])
+	}
+}
 func Test_SearchDocs(t *testing.T) {
 	db := common.InitTestDB(t, AddTables, labels.AddTables)
 
