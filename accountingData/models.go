@@ -19,6 +19,6 @@ type AccountingData struct {
 	TaxCode          int       `db:"tax_code" json:"tax_code"`
 	CostUnit1        string    `db:"cost_unit1" json:"cost_unit1"`
 	CostUnit2        string    `db:"cost_unit2" json:"cost_unit2"`
-	AmountPostedEuro float64   `db:"amount_posted_euro", json:"amount_posted_euro"`
-	Currency         string    `db:"currency", json:"currency"`
+	AmountPostedEuro float64   `db:"amount_posted_euro" json:"amount_posted_euro"`
+	Currency         string    `db:"currency" json:"currency"`
 }
