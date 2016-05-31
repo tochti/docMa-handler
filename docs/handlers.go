@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -63,6 +64,45 @@ func ReadDocFileHandler(c *gin.Context, specs common.Specs) {
 	c.File(filepath)
 }
 
+func RemoveDocHandler(ginCtx *gin.Context, db *gorp.DbMap) {
+	id, err := ReadDocID(ginCtx)
+	if err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	// Remove doc
+	doc := Doc{ID: id}
+	_, err = db.Delete(&doc)
+	if err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	// Remove doc label connections
+	err = RemoveDocLabelConnection(db, id)
+	if err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	// Remove doc account data
+	err = RemoveAccountData(db, id)
+	if err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	// Remove doc numbers
+	err = RemoveDocNumbers(db, id)
+	if err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	ginCtx.JSON(http.StatusOK, nil)
+}
+
 // Attention: its only possible to update the complet doc
 func UpdateDocHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 	id, err := ReadDocID(ginCtx)
@@ -86,11 +126,18 @@ func UpdateDocHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 	ginCtx.JSON(http.StatusOK, doc)
 }
 
-func UpdateDocNameHandler(ginCtx *gin.Context, db *gorp.DbMap) {
+func UpdateDocNameHandler(ginCtx *gin.Context, db *gorp.DbMap, files string) {
 	id, err := ReadDocID(ginCtx)
 	if err != nil {
 		return
 	}
+
+	tmpDoc, err := db.Get(Doc{}, id)
+	if err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+	oldName := tmpDoc.(*Doc).Name
 
 	doc := Doc{}
 	if err := ginCtx.BindJSON(&doc); err != nil {
@@ -105,6 +152,12 @@ func UpdateDocNameHandler(ginCtx *gin.Context, db *gorp.DbMap) {
 
 	q := Q("UPDATE %v SET name=? WHERE id=?", DocsTable)
 	_, err = db.Exec(q, doc.Name, id)
+	if err != nil {
+		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
+		return
+	}
+
+	err = os.Rename(path.Join(files, oldName), path.Join(files, doc.Name))
 	if err != nil {
 		gumrest.ErrorResponse(ginCtx, http.StatusBadRequest, err)
 		return

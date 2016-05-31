@@ -2,7 +2,9 @@ package docs
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -143,6 +145,73 @@ func Test_ReadOneDocHandler(t *testing.T) {
 	}
 }
 
+func Test_RemoveDocHandler(t *testing.T) {
+	db := initDB(t)
+
+	doc := Doc{
+		ID:            1,
+		Name:          "darkmoon.txt",
+		Barcode:       "darkmoon",
+		DateOfScan:    gumtest.SimpleNow(),
+		DateOfReceipt: gumtest.SimpleNow(),
+		Note:          "There was a man...",
+	}
+
+	docLabel := DocsLabels{
+		DocID:   doc.ID,
+		LabelID: 1,
+	}
+
+	accountData := DocAccountData{
+		DocID: doc.ID,
+	}
+
+	number := DocNumber{
+		DocID:  doc.ID,
+		Number: "23",
+	}
+
+	err := db.Insert(&doc, &docLabel, &accountData, &number)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := gin.New()
+	r.GET("/:docID", gumwrap.Gorp(RemoveDocHandler, db))
+	resp := gumtest.NewRouter(r).ServeHTTP("GET", "/1", "")
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("Expected %v was %v, resp: %v", http.StatusOK, resp.Code, resp.Body.String())
+	}
+
+	result, err := db.Get(&doc, doc.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != nil {
+		t.Fatalf("Doc %v should be deleted", doc)
+
+	}
+
+	result, err = db.Get(&docLabel, doc.ID, docLabel.LabelID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != nil {
+		t.Fatalf("DocLabel %v should be deleted", docLabel)
+
+	}
+
+	result, err = db.Get(&number, doc.ID, number.Number)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != nil {
+		t.Fatalf("DocNumber %v should be deleted", number)
+
+	}
+}
+
 func Test_UpdateDocHandler(t *testing.T) {
 	db := initDB(t)
 
@@ -191,16 +260,22 @@ func Test_UpdateDocHandler(t *testing.T) {
 func Test_UpdateDocNameHandler(t *testing.T) {
 	db := initDB(t)
 
+	fh, err := ioutil.TempFile(".", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(fh.Name())
+
 	doc := Doc{
 		ID:            1,
-		Name:          "darkmoon.txt",
+		Name:          fh.Name(),
 		Barcode:       "darkmoon",
 		DateOfScan:    gumtest.SimpleNow(),
 		DateOfReceipt: gumtest.SimpleNow(),
 		Note:          "There was a man...",
 	}
 
-	err := db.Insert(&doc)
+	err = db.Insert(&doc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +283,7 @@ func Test_UpdateDocNameHandler(t *testing.T) {
 	body := `{"name": "fungi.txt"}`
 
 	r := gin.New()
-	r.PATCH("/:docID/name", gumwrap.Gorp(UpdateDocNameHandler, db))
+	r.PATCH("/:docID/name", func(c *gin.Context) { UpdateDocNameHandler(c, db, ".") })
 	resp := gumtest.NewRouter(r).ServeHTTP("PATCH", "/1/name", body)
 
 	doc.Name = "fungi.txt"
@@ -219,6 +294,13 @@ func Test_UpdateDocNameHandler(t *testing.T) {
 	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
 		t.Fatal(err)
 	}
+
+	if _, err := os.Stat(doc.Name); os.IsNotExist(err) {
+		os.Remove(fh.Name())
+		t.Fatalf("Missing %v file", doc.Name)
+	}
+
+	os.Remove(doc.Name)
 }
 
 func Test_CreateDocNumberHandler(t *testing.T) {

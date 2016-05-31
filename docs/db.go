@@ -9,6 +9,7 @@ func AddTables(db *gorp.DbMap) {
 	tMap := db.AddTableWithName(Doc{}, DocsTable).
 		SetKeys(true, "id")
 	tMap.ColMap("name").SetUnique(true).SetNotNull(true)
+	tMap.ColMap("barcode").SetUnique(true)
 
 	db.AddTableWithName(DocAccountData{}, DocAccountDataTable).
 		SetKeys(false, "doc_id")
@@ -85,4 +86,40 @@ func FindDocsWithLabel(db *gorp.DbMap, labelID int64) ([]Doc, error) {
 	}
 
 	return d, nil
+}
+
+// Remove all doc labels for one doc
+func RemoveDocLabelConnection(db *gorp.DbMap, docID int64) error {
+	q := Q("DELETE FROM %v WHERE doc_id=?", DocsLabelsTable)
+
+	_, err := db.Exec(q, docID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Remove doc account data for one doc
+func RemoveAccountData(db *gorp.DbMap, docID int64) error {
+	q := Q("DELETE FROM %v WHERE doc_id=?", DocAccountDataTable)
+
+	_, err := db.Exec(q, docID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Remove all doc numbers for one doc
+func RemoveDocNumbers(db *gorp.DbMap, docID int64) error {
+	q := Q("DELETE FROM %v WHERE doc_id=?", DocNumbersTable)
+
+	_, err := db.Exec(q, docID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
